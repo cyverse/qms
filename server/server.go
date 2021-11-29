@@ -15,7 +15,7 @@ func Init() {
 	// Establish the database connection.
 	log.Info("establishing the database connection")
 
-	databaseURI := "get the url from config" //cfg.GetString("notifications.db.uri")
+	databaseURI := "postgres://postgres:password@localhost:54320/qmsdb?sslmode=disable" //cfg.GetString("notifications.db.uri")
 
 	db, gormdb, err := db.Init("postgres", databaseURI)
 	if err != nil {
