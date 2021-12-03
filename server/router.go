@@ -25,9 +25,20 @@ func RegisterHandlers(s controllers.Server) {
 	s.Router.GET("/", s.RootHandler)
 
 	// Register the group for API version 1.
-	v1Group := s.Router.Group("/v1")
-	v1Group.GET("/", s.RootHandler)
-	v1Group.GET("/plans", s.GetAllPlans)
-	v1Group.GET("/plans/:plan_id", s.GetPLansForID)
+	v1 := s.Router.Group("/v1")
+	v1.GET("/", s.RootHandler)
+	//plans
+	plans := v1.Group("/plans")
 
+	plans.GET("/plans", s.GetAllPlans)
+	plans.GET("/plans/:plan_id", s.GetPLansForID)
+
+	//users
+	users := v1.Group("/users")
+
+	users.GET("/users", s.GetAllUsers)
+	users.GET("/users/:username/plan", s.GetUserPlanDetails)
+
+	//Rersources
+	v1.GET("/resources", s.GetAllResources)
 }
