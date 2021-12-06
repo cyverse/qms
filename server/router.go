@@ -27,12 +27,12 @@ func RegisterHandlers(s controllers.Server) {
 	// Register the group for API version 1.
 	v1 := s.Router.Group("/v1")
 	v1.GET("/", s.RootHandler)
-	//plans
+	//Plans
 	plans := v1.Group("/plans")
 	plans.GET("/plans", s.GetAllPlans)
 	plans.GET("/plans/:plan_id", s.GetPLansForID)
 
-	//users
+	//Users
 	users := v1.Group("/users")
 	users.GET("/", s.GetAllUsers)
 	users.GET("/:username/plan", s.GetUserPlanDetails)
@@ -40,7 +40,7 @@ func RegisterHandlers(s controllers.Server) {
 	users.GET("/:username/quotas/:quotaId", s.GetUserQuotaDetails)
 	users.GET("/:username/usages", s.GetUserUsageDetails)
 
-	//admin
+	//Admin
 	admin := v1.Group("/admin")
 	admin.GET("/quotas", s.GetAllActiveQuotas)
 	admin.PUT("/quotas/:quotaid", s.UpdateQuota)
