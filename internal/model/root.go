@@ -20,7 +20,7 @@ type Response struct {
 	Status string      `json:"status"`
 }
 
-func SuccessReponse(data interface{}, status int) Response {
+func SuccessResponse(data interface{}, status int) Response {
 	return Response{
 		Result: data,
 		Status: http.StatusText(status),

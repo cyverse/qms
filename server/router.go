@@ -34,11 +34,18 @@ func RegisterHandlers(s controllers.Server) {
 
 	//users
 	users := v1.Group("/users")
-	users.GET("/users", s.GetAllUsers)
-	users.GET("/users/:username/plan", s.GetUserPlanDetails)
-	users.GET("/users/:username/quotas", s.GetUserAllQuotas)
-	users.GET("/users/:username/quotas/:quotaId", s.GetUserQuotaDetails)
-	users.GET("/users/:username/usages", s.GetUserUsageDetails)
+	users.GET("/", s.GetAllUsers)
+	users.GET("/:username/plan", s.GetUserPlanDetails)
+	users.GET("/:username/quotas", s.GetUserAllQuotas)
+	users.GET("/:username/quotas/:quotaId", s.GetUserQuotaDetails)
+	users.GET("/:username/usages", s.GetUserUsageDetails)
+
+	//admin
+	admin := v1.Group("/admin")
+	admin.GET("/quotas", s.GetAllActiveQuotas)
+	admin.PUT("/quotas/:quotaid", s.UpdateQuota)
+	admin.GET("/usages", s.GetAllActiveUsage)
+	admin.POST("/usages", s.UpdateUsages)
 
 	//Rersources
 	v1.GET("/resources", s.GetAllResources)

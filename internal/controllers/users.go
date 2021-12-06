@@ -14,7 +14,7 @@ func (s Server) GetAllUsers(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(data, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(data, http.StatusOK))
 }
 
 type PlanDetails struct {
@@ -59,7 +59,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, model.ErrorResponse(err.Error(), http.StatusInternalServerError))
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(plandata, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(plandata, http.StatusOK))
 }
 func (s Server) GetUserAllQuotas(ctx echo.Context) error {
 	resource := ctx.QueryParam("resource")
@@ -84,7 +84,7 @@ func (s Server) GetUserAllQuotas(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(plandata, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(plandata, http.StatusOK))
 }
 func (s Server) GetUserQuotaDetails(ctx echo.Context) error {
 	quotaid := ctx.Param("quotaid")
@@ -109,7 +109,7 @@ func (s Server) GetUserQuotaDetails(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(plandata, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(plandata, http.StatusOK))
 }
 func (s Server) GetUserUsageDetails(ctx echo.Context) error {
 	resource := ctx.QueryParam("resource")
@@ -135,5 +135,5 @@ func (s Server) GetUserUsageDetails(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(plandata, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(plandata, http.StatusOK))
 }

@@ -13,5 +13,5 @@ func (s Server) GetAllResources(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, model.ErrorResponse(err.Error(), http.StatusInternalServerError))
 	}
-	return ctx.JSON(http.StatusOK, model.SuccessReponse(data, http.StatusOK))
+	return ctx.JSON(http.StatusOK, model.SuccessResponse(data, http.StatusOK))
 }
