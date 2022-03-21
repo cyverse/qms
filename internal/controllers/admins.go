@@ -53,16 +53,3 @@ func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
 	}
 	return model.Success(ctx, userPlans, http.StatusOK)
 }
-
-func (s Server) AddUpdateOperation(ctx echo.Context) error {
-	updateOperationName := ctx.Param("update_operation")
-	if updateOperationName == "" {
-		return model.Error(ctx, "invalid update operation", http.StatusBadRequest)
-	}
-	var updateOperation = model.UpdateOperation{Name: updateOperationName}
-	err := s.GORMDB.Debug().Create(&updateOperation).Error
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-	return model.Success(ctx, "Success", http.StatusOK)
-}
