@@ -183,7 +183,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 
 type quotaReq struct {
 	Username     string  `json:"user_name"`
-	ResourceName string  `json:"resourcetype_name"`
+	ResourceName string  `json:"resource_type_name"`
 	QuotaValue   float64 `json:"quota_value"`
 }
 
@@ -199,7 +199,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
 	if quotaReq.ResourceName == "" {
-		return model.Error(ctx, "invalid resource Name", http.StatusBadRequest)
+		return model.Error(ctx, "invalid resource name", http.StatusBadRequest)
 	}
 	if quotaReq.QuotaValue < 0 {
 		return model.Error(ctx, "invalid Quota value", http.StatusBadRequest)
@@ -208,7 +208,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	var resource = model.ResourceType{Name: quotaReq.ResourceName}
 	err := s.GORMDB.WithContext(context).Debug().Find(&resource, "name=?", quotaReq.ResourceName).Error
 	if err != nil {
-		return model.Error(ctx, "resource Type not found: "+quotaReq.ResourceName, http.StatusInternalServerError)
+		return model.Error(ctx, "resource type not found: "+quotaReq.ResourceName, http.StatusInternalServerError)
 	}
 	resourceID := *resource.ID
 	var user = model.User{Username: quotaReq.Username}
@@ -247,13 +247,3 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	}
 	return model.Success(ctx, "Success", http.StatusOK)
 }
-
-// func ParseFloat(valueString string) (float64, error) {
-// 	valueFloat := 0.0
-// 	if temp, err := strconv.ParseFloat(valueString, 64); err == nil {
-// 		valueFloat = temp
-// 	} else {
-// 		return valueFloat, err
-// 	}
-// 	return valueFloat, nil
-// }
