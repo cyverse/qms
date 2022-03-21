@@ -58,7 +58,7 @@ func RegisterHandlers(s controllers.Server) {
 	admin.GET("/users", s.GetAllUsers)
 	admin.PUT("/users/:user_name", s.AddUser)
 	admin.PUT("/users/:user_name/:plan_name", s.UpdateUserPlan)
-	admin.POST("/users/:user_name/:resource_name/:quota_value", s.AddQuota)
+	admin.POST("/users/quota", s.AddQuota)
 
 	// Admin resource type endpoints.
 	adminResourceTypes := admin.Group("/resource-types")
