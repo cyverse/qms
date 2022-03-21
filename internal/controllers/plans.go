@@ -204,30 +204,22 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	if quotaReq.QuotaValue < 0 {
 		return model.Error(ctx, "invalid Quota value", http.StatusBadRequest)
 	}
-
-	var resource = model.ResourceType{Name: quotaReq.ResourceName}
-	err := s.GORMDB.WithContext(context).Debug().Find(&resource, "name=?", quotaReq.ResourceName).Error
+	resource, err := db.GetResourceTypeByName(context, s.GORMDB, quotaReq.ResourceName)
 	if err != nil {
-		return model.Error(ctx, "resource type not found: "+quotaReq.ResourceName, http.StatusInternalServerError)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
-	resourceID := *resource.ID
-	var user = model.User{Username: quotaReq.Username}
-	err = s.GORMDB.WithContext(context).Debug().Find(&user, "username=?", quotaReq.Username).Error
+	user, err := db.GetUser(context, s.GORMDB, quotaReq.Username)
 	if err != nil {
-		return model.Error(ctx, "user name Not Found", http.StatusInternalServerError)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
-	userID := *user.ID
-	var userPlan = model.UserPlan{}
-	err = s.GORMDB.WithContext(context).Debug().
-		Find(&userPlan, "user_id=?", userID).Error
+	userPlan, err := db.GetActiveUserPlan(context, s.GORMDB, user.Username)
 	if err != nil {
-		return model.Error(ctx, "user plan name not found for user: "+quotaReq.Username, http.StatusInternalServerError)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
-	userPlanId := *userPlan.ID
 	var quota = model.Quota{
-		UserPlanID:     &userPlanId,
+		UserPlanID:     userPlan.PlanID,
 		Quota:          quotaReq.QuotaValue,
-		ResourceTypeID: &resourceID,
+		ResourceTypeID: resource.ID,
 	}
 	err = s.GORMDB.WithContext(context).Debug().
 		Clauses(clause.OnConflict{
