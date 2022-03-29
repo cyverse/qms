@@ -46,27 +46,28 @@ func RegisterHandlers(s controllers.Server) {
 	users.GET("/:username/plan", s.GetUserPlanDetails)
 
 	// Admin endpoints.
-	admin := v1.Group("/admin")
+	//admin := v1.Group("/admin")
+	usages := v1.Group("/usages")
 
 	// Admin usage endpoints.
-	admin.GET("/usages/:username", s.GetAllUsageOfUser)
-	admin.GET("/all_active_users", s.GetAllActiveUserPlans)
+	usages.GET("/:username", s.GetAllUsageOfUser)
+	users.GET("/all_active_users", s.GetAllActiveUserPlans)
 	// Add/Updates the usage of a particular user and puts an update record in the update table.
-	admin.POST("/usages", s.AddUsages)
+	usages.POST("", s.AddUsages)
 
 	// Admin user endpoints.
-	admin.GET("/users", s.GetAllUsers)
-	admin.PUT("/users/:user_name", s.AddUser)
-	admin.PUT("/users/:user_name/:plan_name", s.UpdateUserPlan)
-	admin.POST("/users/quota", s.AddQuota)
+	users.GET("", s.GetAllUsers)
+	users.PUT("/:user_name", s.AddUser)
+	users.PUT("/:user_name/:plan_name", s.UpdateUserPlan)
+	users.POST("/quota", s.AddQuota)
 
 	// Admin resource type endpoints.
-	adminResourceTypes := admin.Group("/resource-types")
+	adminResourceTypes := v1.Group("/resource-types")
 	adminResourceTypes.GET("", s.ListResourceTypes)
 	adminResourceTypes.POST("", s.AddResourceType)
 	adminResourceTypes.GET("/:resource_type_id", s.GetResourceTypeDetails)
 	adminResourceTypes.PUT("/:resource_type_id", s.UpdateResourceType)
 
 	// Admin plan quota default endpoints.
-	admin.POST("/plans/quota-defaults", s.AddPlanQuotaDefault)
+	plans.POST("/quota-defaults", s.AddPlanQuotaDefault)
 }

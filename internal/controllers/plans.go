@@ -208,6 +208,9 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
+	if resource == nil {
+		return model.Error(ctx, "resource not found for resource: "+quotaReq.ResourceName, http.StatusInternalServerError)
+	}
 	user, err := db.GetUser(context, s.GORMDB, quotaReq.Username)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
