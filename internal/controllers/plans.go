@@ -20,6 +20,12 @@ type PlanQuotaDefaultValues struct {
 	ResourceTypeName string  `json:"resource_type_name"`
 }
 
+type QuotaReq struct {
+	Username     string  `json:"user_name"`
+	ResourceName string  `json:"resource_type_name"`
+	QuotaValue   float64 `json:"quota_value"`
+}
+
 // extractPlanID extracts and validates the plan ID path parameter.
 func extractPlanID(ctx echo.Context) (string, error) {
 	planID, err := params.ValidatedPathParam(ctx, "plan_id", "uuid_rfc4122")
@@ -35,10 +41,11 @@ func extractPlanID(ctx echo.Context) (string, error) {
 //
 // List Plans
 //
-// Lists all of the plans that are currently available.
+// Lists all the plans that are currently available.
 //
 // responses:
 //   200: plansResponse
+//	 400: badRequestResponse
 //   500: internalServerErrorResponse
 func (s Server) GetAllPlans(ctx echo.Context) error {
 	context := ctx.Request().Context()
@@ -84,7 +91,17 @@ func (s Server) GetPlanByID(ctx echo.Context) error {
 
 // AddPlan adds a new plan to the database.
 //
-// swagger:route POST /v1/plans
+// swagger:route POST /plans plans addPlan
+//
+// Add Plan
+//
+// Adds the plan to the Plans Database.
+//
+// Responses:
+//	 200: planResponse
+//   400: badRequestResponse
+// 	 409: conflictResponse
+//   500: internalServerErrorResponse
 func (s Server) AddPlan(ctx echo.Context) error {
 	context := ctx.Request().Context()
 	var err error
@@ -120,6 +137,19 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	})
 }
 
+// AddPlanQuotaDefault returns the plan with the given identifier.
+//
+// swagger:route POST /plans/quota-defaults plans addPlanQuotaDefaults
+//
+// Update/ Add Plan Quota Defaults.
+//
+// Adds / updates quota plan defaults to a Plan.
+//
+// responses:
+//   200: planResponse
+//   400: badRequestResponse
+// 	 409: conflictResponse
+//   500: internalServerErrorResponse
 func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	var err error
 	// Parse and validate the request body.
@@ -181,16 +211,23 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	})
 }
 
-type quotaReq struct {
-	Username     string  `json:"user_name"`
-	ResourceName string  `json:"resource_type_name"`
-	QuotaValue   float64 `json:"quota_value"`
-}
-
+// AddQuota adds quota value for a particular resource type and user.
+//
+// swagger:route POST /users/quota users addQuota
+//
+// Add Resource Quota Value.
+//
+// Add resource quota values of a user.
+//
+// responses:
+//   200: quotaResponse
+//   400: badRequestResponse
+// 	 409: conflictResponse
+//   500: internalServerErrorResponse
 func (s Server) AddQuota(ctx echo.Context) error {
 	context := ctx.Request().Context()
 
-	var quotaReq quotaReq
+	var quotaReq QuotaReq
 	if err := ctx.Bind(&quotaReq); err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
