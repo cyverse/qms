@@ -11,13 +11,11 @@ type Plan struct {
 
 	// The plan identifier
 	//
-	// required: true
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 
 	// The plan name
 	//
-	// required: true
 	Name string `gorm:"not null;unique" json:"name"`
 
 	// A brief description of the plan
@@ -34,7 +32,6 @@ type PlanQuotaDefault struct {
 
 	// The plan quota default identifier
 	//
-	// required: true
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 

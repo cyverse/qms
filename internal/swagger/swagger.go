@@ -111,6 +111,20 @@ type APIVersionResponseWrapper struct {
 	}
 }
 
+// General Success Message
+//
+// swagger:response successMessageResponse
+type SuccessMessageResponseWrapoper struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The success message.
+		Result string `json:"result"`
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse
@@ -150,6 +164,7 @@ type PlanResponseWrapper struct {
 		Result model.Plan `json:"result"`
 	}
 }
+
 type AddPlans struct {
 	// The Add Plans information
 	//

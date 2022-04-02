@@ -21,7 +21,7 @@ func extractResourceTypeID(ctx echo.Context) (string, error) {
 	return resourceTypeID, nil
 }
 
-// swagger:route GET /v1/resource-types listResourceTypes
+// swagger:route GET /v1/resource-types resource-types listResourceTypes
 //
 // List Resource Types
 //
@@ -31,17 +31,7 @@ func extractResourceTypeID(ctx echo.Context) (string, error) {
 //   200: resourceTypeListing
 //   500: internalServerErrorResponse
 
-// swagger:route GET /v1/admin/resource-types admin-resource-types listResourceTypes
-//
-// List Resource Types
-//
-// Lists all the resource types defined in the QMS database.
-//
-// responses:
-//   200: resourceTypeListing
-//   500: internalServerErrorResponse
-
-// ListResourceTypes is the handler for the GET /v1/resource-types and GET /v1/admin/resource-types endpoints.
+// ListResourceTypes is the handler for the GET /v1/resource-types and GET /v1/resource-types endpoints.
 func (s Server) ListResourceTypes(ctx echo.Context) error {
 	var data []model.ResourceType
 	err := s.GORMDB.Debug().Find(&data).Error
@@ -52,7 +42,7 @@ func (s Server) ListResourceTypes(ctx echo.Context) error {
 	return model.Success(ctx, data, http.StatusOK)
 }
 
-// swagger:route POST /v1/admin/resource-types admin-resource-types addResourceType
+// swagger:route POST /v1/resource-types resource-types addResourceType
 //
 // Add Resource Type
 //
@@ -64,7 +54,7 @@ func (s Server) ListResourceTypes(ctx echo.Context) error {
 //   409: conflictResponse
 //   500: internalServerErrorResponse
 
-// AddResourceType is the handler for the POST /v1/admin/resource-types endpoint.
+// AddResourceType is the handler for the POST /v1/resource-types endpoint.
 func (s Server) AddResourceType(ctx echo.Context) error {
 	var err error
 
@@ -101,7 +91,7 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 	return model.Success(ctx, resourceType, http.StatusOK)
 }
 
-// swagger:route GET /v1/admin/resource-types/{resource-type-id} admin-resource-types getResourceTypeDetails
+// swagger:route GET /v1/resource-types/{resource_type_id} resource-types getResourceTypeDetails
 //
 // Get Resource Type Details
 //
@@ -113,7 +103,7 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 //   404: notFoundResponse
 //   500: internalServerErrorResponse
 
-// GetResourceTypeDetails is the handler for the GET /v1/admin/resource-types/{resource-type-id} endpoint.
+// GetResourceTypeDetails is the handler for the GET /v1/resource-types/{resource_type_id} endpoint.
 func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 	var err error
 
@@ -137,7 +127,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 	return model.Success(ctx, &resourceType, http.StatusOK)
 }
 
-// swagger:route PUT /v1/admin/resource-types/{resource-type-id} admin-resource-types updateResourceType
+// swagger:route PUT /v1/resource-types/{resource_type_id} resource-types updateResourceType
 //
 // Update Resource Type
 //
@@ -149,7 +139,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 //   404: notFoundResponse
 //   500: internalServerErrorResponse
 
-// UpdateResourceType is the handler for the PUT /v1/admin/resource-types/{resource-type-id} endpoint.
+// UpdateResourceType is the handler for the PUT /v1/resource-types/{resource_type_id} endpoint.
 func (s Server) UpdateResourceType(ctx echo.Context) error {
 	context := ctx.Request().Context()
 	var err error

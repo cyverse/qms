@@ -6,7 +6,6 @@ package model
 type ResourceType struct {
 	// The resource type ID
 	//
-	// required: true
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 	// The resource type name

@@ -10,7 +10,6 @@ import (
 type UpdateOperation struct {
 	// The update operation ID
 	//
-	// required: true
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 	// The update operation name
