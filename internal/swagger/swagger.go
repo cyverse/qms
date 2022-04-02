@@ -151,7 +151,7 @@ type PlanIDParameter struct {
 	PlanID string `json:"plan_id"`
 }
 
-// PlanResponseWrapper Plan Information
+// Plan Information
 //
 // swagger:response planResponse
 type PlanResponseWrapper struct {

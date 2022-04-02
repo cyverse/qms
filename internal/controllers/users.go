@@ -18,7 +18,7 @@ const (
 	UpdateTypeAdd = "ADD"
 )
 
-// swagger:route GET /v1/users admin listUsers
+// swagger:route GET /v1/users users listUsers
 //
 // List Users
 //
