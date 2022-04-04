@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/cyverse/QMS/internal/db"
 	"net/http"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -13,18 +14,17 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
-	var user model.User
-	err = s.GORMDB.Where("username=?", username).Find(&user).Error
+	user, err := db.GetUser(s.GORMDB, username)
+	activePlan, err := db.GetActiveUserPlan(s.GORMDB, username)
 	if err != nil {
-		return model.Error(ctx, "user not found", http.StatusInternalServerError)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 	var userPlan model.UserPlan
 	err = s.GORMDB.
-		Preload("User").
-		Preload("Plan").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
 		Where("user_id=?", user.ID).
+		Where("plan_id=?", activePlan.PlanID).
 		Find(&userPlan).Error
 
 	if err != nil {
