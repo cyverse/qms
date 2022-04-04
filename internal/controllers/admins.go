@@ -15,6 +15,9 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
 	user, err := db.GetUser(s.GORMDB, username)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
 	activePlan, err := db.GetActiveUserPlan(s.GORMDB, username)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
