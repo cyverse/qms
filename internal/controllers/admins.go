@@ -14,9 +14,11 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
-	user, err := db.GetUser(s.GORMDB, username)
+
+	var user model.User
+	err = s.GORMDB.Where("username=?", username).Find(&user).Error
 	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		return model.Error(ctx, "user name not found", http.StatusInternalServerError)
 	}
 	activePlan, err := db.GetActiveUserPlan(s.GORMDB, username)
 	if err != nil {
