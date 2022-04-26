@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -13,11 +14,12 @@ const (
 )
 
 // GetPlan looks up the plan with the given name.
-func GetPlan(db *gorm.DB, planName string) (*model.Plan, error) {
+func GetPlan(ctx context.Context, db *gorm.DB, planName string) (*model.Plan, error) {
 	wrapMsg := fmt.Sprintf("unable to look up plan name '%s'", planName)
 	var err error
 	var plan = model.Plan{}
 	err = db.
+		WithContext(ctx).
 		Where("name=?", planName).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
@@ -32,12 +34,13 @@ func GetPlan(db *gorm.DB, planName string) (*model.Plan, error) {
 }
 
 // GetPlanByID looks up the plan with the given identifier.
-func GetPlanByID(db *gorm.DB, planID string) (*model.Plan, error) {
+func GetPlanByID(ctx context.Context, db *gorm.DB, planID string) (*model.Plan, error) {
 	wrapMsg := fmt.Sprintf("unable to look up plan ID `%s'", planID)
 	var err error
 
 	plan := model.Plan{ID: &planID}
 	err = db.
+		WithContext(ctx).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
 		First(&plan).Error
@@ -52,13 +55,14 @@ func GetPlanByID(db *gorm.DB, planID string) (*model.Plan, error) {
 }
 
 // ListPlans lists all of the plans that are currently available.
-func ListPlans(db *gorm.DB) ([]*model.Plan, error) {
+func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 	wrapMsg := "unable to list plans"
 	var err error
 
 	// List the plans.
 	var plans []*model.Plan
 	err = db.
+		WithContext(ctx).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
 		Find(&plans).Error
@@ -69,12 +73,12 @@ func ListPlans(db *gorm.DB) ([]*model.Plan, error) {
 	return plans, nil
 }
 
-func GetDefaultQuotaForPlan(db *gorm.DB, planID string) ([]model.PlanQuotaDefault, error) {
+func GetDefaultQuotaForPlan(ctx context.Context, db *gorm.DB, planID string) ([]model.PlanQuotaDefault, error) {
 	wrapMsg := "unable to look up plan name "
 	var err error
 
 	var planQuotaDefaults []model.PlanQuotaDefault
-	err = db.Model(&planQuotaDefaults).Where("plan_id=?", planID).Scan(&planQuotaDefaults).Error
+	err = db.WithContext(ctx).Model(&planQuotaDefaults).Where("plan_id=?", planID).Scan(&planQuotaDefaults).Error
 	//err = db.Find(&planQuotaDefaults).Error
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)

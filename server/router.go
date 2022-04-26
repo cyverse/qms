@@ -6,6 +6,7 @@ import (
 	"github.com/cyverse/QMS/internal/controllers"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 func InitRouter(logger *log.Logger) *echo.Echo {
@@ -17,6 +18,7 @@ func InitRouter(logger *log.Logger) *echo.Echo {
 	e.Logger = logger
 
 	// Add middleware.
+	e.Use(otelecho.Middleware("QMS"))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(redoc.Serve(redoc.Opts{Title: "CyVerse Quota Management System"}))

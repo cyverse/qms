@@ -47,6 +47,16 @@ spec:
                 secretKeyRef:
                   name: configs
                   key: QMS_REINIT_DB
+            - name: OTEL_TRACES_EXPORTER
+              valueFrom:
+                secretKeyRef:
+                  name: configs
+                  key: OTEL_TRACES_EXPORTER
+            - name: OTEL_EXPORTER_JAEGER_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: configs
+                  key: OTEL_EXPORTER_JAEGER_HTTP_ENDPOINT
           resources:
             requests:
               cpu: "1m"

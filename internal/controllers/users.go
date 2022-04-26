@@ -51,6 +51,7 @@ type Result struct {
 
 // GetUserPlanDetails returns information about the currently active plan for the user.
 func (s Server) GetUserPlanDetails(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
@@ -61,13 +62,13 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 		var err error
 
 		// Look up or insert the user.
-		user, err := db.GetUser(tx, username)
+		user, err := db.GetUser(context, tx, username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Look up or create the user plan.
-		userPlan, err := db.GetActiveUserPlan(tx, user.Username)
+		userPlan, err := db.GetActiveUserPlan(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -75,6 +76,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 		// Retrieve the user plan so that the associations will be loaded.
 		result := model.UserPlan{ID: userPlan.ID}
 		err = tx.
+			WithContext(context).
 			Preload("User").
 			Preload("Plan").
 			Preload("Quotas").
@@ -93,6 +95,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 
 // AddUser adds a new user to the database. This is a no-op if the user already exists.
 func (s Server) AddUser(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	username := ctx.Param("user_name")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
@@ -103,13 +106,13 @@ func (s Server) AddUser(ctx echo.Context) error {
 		var err error
 
 		// Either add the user to the database or look up the existing user information.
-		user, err := db.GetUser(tx, username)
+		user, err := db.GetUser(context, tx, username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		// GetActiveUserPlan will automatically subscribed the user to the basic plan if not subscribed already.
-		_, err = db.GetActiveUserPlan(tx, user.Username)
+		_, err = db.GetActiveUserPlan(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -120,6 +123,8 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 // UpdateUserPlan subscribes the user to a new plan.
 func (s Server) UpdateUserPlan(ctx echo.Context) error {
+	context := ctx.Request().Context()
+
 	planName := ctx.Param("plan_name")
 	if planName == "" {
 		return model.Error(ctx, "invalid plan name", http.StatusBadRequest)
@@ -134,13 +139,13 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 		var err error
 
 		// Either add the user to the database or look up the existing user information.
-		user, err := db.GetUser(tx, username)
+		user, err := db.GetUser(context, tx, username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Verify that a plan with the given name exists.
-		plan, err := db.GetPlan(tx, planName)
+		plan, err := db.GetPlan(context, tx, planName)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -150,13 +155,13 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 		}
 
 		// Deactivate all active plans for the user.
-		err = db.DeactivateUserPlans(tx, *user.ID)
+		err = db.DeactivateUserPlans(context, tx, *user.ID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Subscribe the user to the plan.
-		_, err = db.SubscribeUserToPlan(tx, user, plan)
+		_, err = db.SubscribeUserToPlan(context, tx, user, plan)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -178,6 +183,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 		err   error
 		usage Usage
 	)
+	context := ctx.Request().Context()
 
 	// Extract and validate the request body.
 	if err = ctx.Bind(&usage); err != nil {
@@ -197,13 +203,13 @@ func (s Server) AddUsages(ctx echo.Context) error {
 	}
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlan(tx, usage.Username)
+		userPlan, err := db.GetActiveUserPlan(context, tx, usage.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Look up the resource type.
-		resourceType, err := db.GetResourceTypeByName(tx, usage.ResourceName)
+		resourceType, err := db.GetResourceTypeByName(context, tx, usage.ResourceName)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -220,7 +226,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 
 		// Verify that the update operation for the given update type exists.
 		updateOperation := model.UpdateOperation{Name: usage.UpdateType}
-		err = tx.Debug().First(&updateOperation).Error
+		err = tx.WithContext(context).Debug().First(&updateOperation).Error
 		if err == gorm.ErrRecordNotFound {
 			return model.Error(ctx, "invalid update type", http.StatusBadRequest)
 		}
@@ -233,7 +239,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 			UserPlanID:     userPlan.ID,
 			ResourceTypeID: resourceType.ID,
 		}
-		err = tx.Debug().First(&currentUsage).Error
+		err = tx.WithContext(context).Debug().First(&currentUsage).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -250,7 +256,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 		}
 
 		// Either add the new usage record or update the existing one.
-		err = tx.Debug().Clauses(clause.OnConflict{
+		err = tx.WithContext(context).Debug().Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{
 					Name: "user_plan_id",
@@ -273,7 +279,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 			EffectiveDate:     time.Now(),
 			UpdateOperationID: updateOperation.ID,
 		}
-		err = tx.Debug().Create(&update).Error
+		err = tx.WithContext(context).Debug().Create(&update).Error
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}

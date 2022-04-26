@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/cyverse-de/echo-middleware/v2/log"
+	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse/QMS/config"
 	"github.com/cyverse/QMS/server"
 	"github.com/golang-migrate/migrate/v4"
@@ -13,6 +15,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+const serviceName = "QMS"
 
 // buildLoggerEntry sets some logging options then returns a logger entry with some custom fields
 // for convenience.
@@ -67,6 +71,11 @@ func runSchemaMigrations(logger *log.Logger, dbURI string, reinit bool) error {
 
 func main() {
 	logger := log.NewLogger(buildLoggerEntry())
+
+	var tracerCtx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { logger.Fatal(e) })
+	defer shutdown()
 
 	// Load the configuration.
 	spec, err := config.LoadConfig()

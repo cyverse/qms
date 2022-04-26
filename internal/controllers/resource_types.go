@@ -151,6 +151,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 
 // UpdateResourceType is the handler for the PUT /v1/admin/resource-types/{resource-type-id} endpoint.
 func (s Server) UpdateResourceType(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	var err error
 
 	// Extract and validate the resource type ID.
@@ -176,7 +177,7 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 		var err error
 
 		// Verify that the resource type exists.
-		err = tx.Take(&existingResourceType).Error
+		err = tx.WithContext(context).Take(&existingResourceType).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			msg := fmt.Sprintf("resource type not found: %s", resourceTypeID)
 			return echo.NewHTTPError(http.StatusNotFound, msg)
@@ -188,7 +189,7 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 		// Update the resource type.
 		existingResourceType.Name = inboundResourceType.Name
 		existingResourceType.Unit = inboundResourceType.Unit
-		err = tx.Save(&existingResourceType).Error
+		err = tx.WithContext(context).Save(&existingResourceType).Error
 		if err != nil {
 			msg := fmt.Sprintf("unable to update the resource type: %s", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, msg)

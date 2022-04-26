@@ -2,9 +2,10 @@ package controllers
 
 import (
 	"fmt"
-	"gorm.io/gorm/clause"
 	"net/http"
 	"strconv"
+
+	"gorm.io/gorm/clause"
 
 	"github.com/cyverse-de/echo-middleware/v2/params"
 	"github.com/cyverse/QMS/internal/db"
@@ -41,7 +42,8 @@ func extractPlanID(ctx echo.Context) (string, error) {
 //   200: plansResponse
 //   500: internalServerErrorResponse
 func (s Server) GetAllPlans(ctx echo.Context) error {
-	plans, err := db.ListPlans(s.GORMDB)
+	context := ctx.Request().Context()
+	plans, err := db.ListPlans(context, s.GORMDB)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
@@ -61,6 +63,7 @@ func (s Server) GetAllPlans(ctx echo.Context) error {
 //   400: badRequestResponse
 //   500: internalServerErrorResponse
 func (s Server) GetPlanByID(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	var err error
 	// Extract and validate the plan ID.
 	planID, err := extractPlanID(ctx)
@@ -68,7 +71,7 @@ func (s Server) GetPlanByID(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
 	// Look up the plan.
-	plan, err := db.GetPlanByID(s.GORMDB, planID)
+	plan, err := db.GetPlanByID(context, s.GORMDB, planID)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
@@ -84,6 +87,7 @@ func (s Server) GetPlanByID(ctx echo.Context) error {
 //
 // swagger:route POST /v1/plans
 func (s Server) AddPlan(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	var err error
 	// Parse and validate the request body.
 	var plan httpmodel.NewPlan
@@ -98,7 +102,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 		dbPlan := plan.ToDBModel()
 		// Look up each resource type and update it in the struct.
 		for i, planQuotaDefault := range dbPlan.PlanQuotaDefaults {
-			resourceType, err := db.GetResourceTypeByName(tx, planQuotaDefault.ResourceType.Name)
+			resourceType, err := db.GetResourceTypeByName(context, tx, planQuotaDefault.ResourceType.Name)
 			if err != nil {
 				return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 			}
@@ -109,7 +113,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 			dbPlan.PlanQuotaDefaults[i].ResourceType = *resourceType
 		}
 		// Add the plan to the database.
-		err := tx.Create(&dbPlan).Error
+		err := tx.WithContext(context).Create(&dbPlan).Error
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -121,6 +125,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	var err error
 	// Parse and validate the request body.
 	var planQuotaDefaultValues PlanQuotaDefaultValues
+	var context = ctx.Request().Context()
 	if err = ctx.Bind(&planQuotaDefaultValues); err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
@@ -132,7 +137,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	}
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
-		plan, err := db.GetPlan(tx, planQuotaDefaultValues.PlanName)
+		plan, err := db.GetPlan(context, tx, planQuotaDefaultValues.PlanName)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -141,7 +146,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 			return model.Error(ctx, msg, http.StatusBadRequest)
 		}
 
-		resourceType, err := db.GetResourceTypeByName(tx, planQuotaDefaultValues.ResourceTypeName)
+		resourceType, err := db.GetResourceTypeByName(context, tx, planQuotaDefaultValues.ResourceTypeName)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -155,7 +160,8 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 			QuotaValue:     planQuotaDefaultValues.QuotaValue,
 		}
 		//updates quota value if quota value exists for a plan and resource type or else creates a defaults quota value for the plan and resource type.
-		err = tx.Debug().
+		err = tx.WithContext(context).
+			Debug().
 			Clauses(clause.OnConflict{
 				Columns: []clause.Column{
 					{
@@ -177,6 +183,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 }
 
 func (s Server) AddQuota(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	username := ctx.Param("user_name")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
@@ -194,19 +201,19 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, "invalid Quota Value", http.StatusInternalServerError)
 	}
 	var resource = model.ResourceType{Name: resourceName}
-	err = s.GORMDB.Debug().Find(&resource, "name=?", resourceName).Error
+	err = s.GORMDB.WithContext(context).Debug().Find(&resource, "name=?", resourceName).Error
 	if err != nil {
 		return model.Error(ctx, "resource Type not found: "+resourceName, http.StatusInternalServerError)
 	}
 	resourceID := *resource.ID
 	var user = model.User{Username: username}
-	err = s.GORMDB.Debug().Find(&user, "username=?", username).Error
+	err = s.GORMDB.WithContext(context).Debug().Find(&user, "username=?", username).Error
 	if err != nil {
 		return model.Error(ctx, "user name Not Found", http.StatusInternalServerError)
 	}
 	userID := *user.ID
 	var userPlan = model.UserPlan{}
-	err = s.GORMDB.Debug().
+	err = s.GORMDB.WithContext(context).Debug().
 		Find(&userPlan, "user_id=?", userID).Error
 	if err != nil {
 		return model.Error(ctx, "user plan name not found for user: "+username, http.StatusInternalServerError)
@@ -217,7 +224,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		Quota:          quotaValueFloat,
 		ResourceTypeID: &resourceID,
 	}
-	err = s.GORMDB.Debug().
+	err = s.GORMDB.WithContext(context).Debug().
 		Create(&quota).Error
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)

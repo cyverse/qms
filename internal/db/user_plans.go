@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"time"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -22,7 +23,7 @@ func QuotasFromPlan(plan *model.Plan) []model.Quota {
 }
 
 // SubscribeUserToPlan subscribes the given user to the given plan.
-func SubscribeUserToPlan(db *gorm.DB, user *model.User, plan *model.Plan) (*model.UserPlan, error) {
+func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan) (*model.UserPlan, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
 
@@ -36,7 +37,7 @@ func SubscribeUserToPlan(db *gorm.DB, user *model.User, plan *model.Plan) (*mode
 		PlanID:             plan.ID,
 		Quotas:             QuotasFromPlan(plan),
 	}
-	err = db.Debug().Create(&userPlan).Error
+	err = db.WithContext(ctx).Debug().Create(&userPlan).Error
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
@@ -45,37 +46,38 @@ func SubscribeUserToPlan(db *gorm.DB, user *model.User, plan *model.Plan) (*mode
 }
 
 // SubscribeUserToDefaultPlan adds the default user plan to the given user.
-func SubscribeUserToDefaultPlan(db *gorm.DB, username string) (*model.UserPlan, error) {
+func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
 	wrapMsg := "unable to add the default user plan"
 	var err error
 
 	// Get the user ID.
-	user, err := GetUser(db, username)
+	user, err := GetUser(ctx, db, username)
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
 
 	// Get the basic plan ID.
-	plan, err := GetPlan(db, PlanNameBasic)
+	plan, err := GetPlan(ctx, db, PlanNameBasic)
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
 
 	// Subscribe the user to the plan.
-	return SubscribeUserToPlan(db, user, plan)
+	return SubscribeUserToPlan(ctx, db, user, plan)
 }
 
 // GetActiveUserPlan retrieves the user plan record that is currently active for the user. The effective start
 // date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active
 // user plans exist for the user then a new one for the basic plan is created.
-func GetActiveUserPlan(db *gorm.DB, username string) (*model.UserPlan, error) {
+func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
 	wrapMsg := "unable to get the active user plan"
 	var err error
 
 	// Look up the currently active user plan, adding a new one if it doesn't exist already.
 	var userPlan model.UserPlan
 	err = db.
+		WithContext(ctx).
 		Table("user_plans").
 		Joins("JOIN users ON user_plans.user_id=users.id").
 		Where("users.username=?", username).
@@ -88,7 +90,7 @@ func GetActiveUserPlan(db *gorm.DB, username string) (*model.UserPlan, error) {
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errors.Wrap(err, wrapMsg)
 	} else if err == gorm.ErrRecordNotFound {
-		userPlanPtr, err := SubscribeUserToDefaultPlan(db, username)
+		userPlanPtr, err := SubscribeUserToDefaultPlan(ctx, db, username)
 		if err != nil {
 			return nil, errors.Wrap(err, wrapMsg)
 		}
@@ -100,10 +102,11 @@ func GetActiveUserPlan(db *gorm.DB, username string) (*model.UserPlan, error) {
 
 // DeactivateUserPlans marks all currently active plans for a user as expired. This operation is used when a user
 // selects a new plan. This function does not support user plans that become active in the future at this time.
-func DeactivateUserPlans(db *gorm.DB, userID string) error {
+func DeactivateUserPlans(ctx context.Context, db *gorm.DB, userID string) error {
 	wrapMsg := "unable to deactivate active plans for user"
 	// Mark currently active user plans as expired.
-	err := db.Model(&model.UserPlan{}).
+	err := db.WithContext(ctx).
+		Model(&model.UserPlan{}).
 		Select("EffectiveEndDate").
 		Where("user_id = ?", userID).
 		Where("effective_end_date > CURRENT_TIMESTAMP").

@@ -26,3 +26,5 @@ swagger.json
 
 # Goland specified setting files.
 .idea/
+
+*.swp
