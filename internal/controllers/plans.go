@@ -45,7 +45,7 @@ func extractPlanID(ctx echo.Context) (string, error) {
 //
 // responses:
 //   200: plansResponse
-//	 400: badRequestResponse
+//   400: badRequestResponse
 //   500: internalServerErrorResponse
 func (s Server) GetAllPlans(ctx echo.Context) error {
 	context := ctx.Request().Context()
@@ -98,9 +98,9 @@ func (s Server) GetPlanByID(ctx echo.Context) error {
 // Adds the plan to the Plans Database.
 //
 // Responses:
-//	 200: successMessageResponse
+//   200: successMessageResponse
 //   400: badRequestResponse
-// 	 409: conflictResponse
+//   409: conflictResponse
 //   500: internalServerErrorResponse
 func (s Server) AddPlan(ctx echo.Context) error {
 	context := ctx.Request().Context()
@@ -148,7 +148,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 // responses:
 //   200: planResponse
 //   400: badRequestResponse
-// 	 409: conflictResponse
+//   409: conflictResponse
 //   500: internalServerErrorResponse
 func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	var err error
@@ -222,7 +222,7 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 // responses:
 //   200: successMessageResponse
 //   400: badRequestResponse
-// 	 409: conflictResponse
+//   409: conflictResponse
 //   500: internalServerErrorResponse
 func (s Server) AddQuota(ctx echo.Context) error {
 	context := ctx.Request().Context()
