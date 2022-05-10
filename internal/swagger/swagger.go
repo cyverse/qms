@@ -16,6 +16,8 @@
 package swagger
 
 import (
+	"github.com/cyverse/QMS/internal/controllers"
+	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
 )
 
@@ -109,6 +111,20 @@ type APIVersionResponseWrapper struct {
 	}
 }
 
+// General Success Message
+//
+// swagger:response successMessageResponse
+type SuccessMessageResponseWrapoper struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The success message.
+		Result string `json:"result"`
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse
@@ -147,6 +163,27 @@ type PlanResponseWrapper struct {
 		// The plan information
 		Result model.Plan `json:"result"`
 	}
+}
+
+type AddPlans struct {
+	// The Add Plans information
+	//
+	// in: body
+	Body httpmodel.NewPlan
+}
+
+type AddPlanQuotaDefaults struct {
+	// The planQuotaDefault information
+	//
+	// in: body
+	Body controllers.PlanQuotaDefaultValues
+}
+
+type QuotaResponseWrapper struct {
+	// The quota information
+	//
+	//in: body
+	Body controllers.QuotaReq
 }
 
 // Users
