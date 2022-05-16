@@ -3,22 +3,26 @@ package server
 import (
 	"github.com/cyverse-de/echo-middleware/v2/redoc"
 	"github.com/cyverse/QMS/internal/controllers"
-	"github.com/cyverse/QMS/logging"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/sirupsen/logrus"
+	echolog "github.com/spirosoik/echo-logrus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 func InitRouter() *echo.Echo {
+	log := log.WithFields(logrus.Fields{"context": "router"})
+
 	// Create the web server.
 	e := echo.New()
 
 	// Set a custom logger.
-	e.Logger = logging.GetEchoLogger(log)
+	echoLogger := echolog.NewLoggerMiddleware(log)
+	e.Logger = echoLogger
 
 	// Add middleware.
 	e.Use(otelecho.Middleware("QMS"))
-	e.Use(middleware.Logger())
+	e.Use(echoLogger.Hook())
 	e.Use(middleware.Recover())
 	e.Use(redoc.Serve(redoc.Opts{Title: "CyVerse Quota Management System"}))
 

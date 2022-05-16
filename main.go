@@ -13,18 +13,15 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-const serviceName = "QMS"
-
-var log = logging.Log
-
-func init() {
-	logging.SetServiceName(serviceName)
-}
+var log = logging.GetLogger().WithFields(logrus.Fields{"package": "main"})
 
 // runSchemaMigrations runs the schema migrations on the database.
 func runSchemaMigrations(dbURI string, reinit bool) error {
+	log := log.WithFields(logrus.Fields{"context": "schema migrations"})
+
 	wrapMsg := "unable to run the schema migrations"
 
 	// Build the URI to the migrations.
@@ -60,9 +57,11 @@ func runSchemaMigrations(dbURI string, reinit bool) error {
 }
 
 func main() {
+	log := log.WithFields(logrus.Fields{"context": "main"})
+
 	var tracerCtx, cancel = context.WithCancel(context.Background())
 	defer cancel()
-	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { log.Fatal(e) })
+	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, config.ServiceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
 
 	// Load the configuration.

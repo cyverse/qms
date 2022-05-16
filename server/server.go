@@ -10,9 +10,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var log = logging.Log.WithFields(logrus.Fields{"package": "server"})
+var log = logging.GetLogger().WithFields(logrus.Fields{"package": "server"})
 
 func Init(spec *config.Specification) {
+	log := log.WithFields(logrus.Fields{"context": "server init"})
+
 	e := InitRouter()
 
 	// Establish the database connection.
