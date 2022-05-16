@@ -3,20 +3,25 @@ package server
 import (
 	"fmt"
 
-	"github.com/cyverse-de/echo-middleware/v2/log"
 	"github.com/cyverse/QMS/config"
 	"github.com/cyverse/QMS/internal/controllers"
 	"github.com/cyverse/QMS/internal/db"
+	"github.com/cyverse/QMS/logging"
+	"github.com/sirupsen/logrus"
 )
 
-func Init(logger *log.Logger, spec *config.Specification) {
-	e := InitRouter(logger)
+var log = logging.GetLogger().WithFields(logrus.Fields{"package": "server"})
+
+func Init(spec *config.Specification) {
+	log := log.WithFields(logrus.Fields{"context": "server init"})
+
+	e := InitRouter()
 
 	// Establish the database connection.
-	logger.Info("establishing the database connection")
+	log.Info("establishing the database connection")
 	db, gormdb, err := db.Init("postgres", spec.DatabaseURI)
 	if err != nil {
-		e.Logger.Fatalf("service initialization failed: %s", err.Error())
+		log.Fatalf("service initialization failed: %s", err.Error())
 	}
 
 	s := controllers.Server{
@@ -30,6 +35,6 @@ func Init(logger *log.Logger, spec *config.Specification) {
 
 	// Register the handlers.
 	RegisterHandlers(s)
-	e.Logger.Info("starting the service")
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
+	log.Info("starting the service")
+	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
 }

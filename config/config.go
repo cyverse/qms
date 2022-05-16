@@ -2,6 +2,8 @@ package config
 
 import "github.com/kelseyhightower/envconfig"
 
+var ServiceName = "QMS"
+
 // Specification defines the configuration settings for the QMS service.
 type Specification struct {
 	DatabaseURI string `required:"true" split_words:"true"`

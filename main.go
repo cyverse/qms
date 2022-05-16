@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cyverse-de/echo-middleware/v2/log"
 	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse/QMS/config"
+	"github.com/cyverse/QMS/logging"
 	"github.com/cyverse/QMS/server"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -16,25 +16,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const serviceName = "QMS"
-
-// buildLoggerEntry sets some logging options then returns a logger entry with some custom fields
-// for convenience.
-func buildLoggerEntry() *logrus.Entry {
-
-	// Set the logging format to JSON because that's what Echo's middleware uses.
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-
-	// Return the custom log entry.
-	return logrus.WithFields(logrus.Fields{
-		"service": "qms",
-		"art-id":  "qms",
-		"group":   "org.cyverse",
-	})
-}
+var log = logging.GetLogger().WithFields(logrus.Fields{"package": "main"})
 
 // runSchemaMigrations runs the schema migrations on the database.
-func runSchemaMigrations(logger *log.Logger, dbURI string, reinit bool) error {
+func runSchemaMigrations(dbURI string, reinit bool) error {
+	log := log.WithFields(logrus.Fields{"context": "schema migrations"})
+
 	wrapMsg := "unable to run the schema migrations"
 
 	// Build the URI to the migrations.
@@ -52,7 +39,7 @@ func runSchemaMigrations(logger *log.Logger, dbURI string, reinit bool) error {
 
 	// Run the down migrations if we're supposed to.
 	if reinit {
-		logger.Info("running the down database migrations")
+		log.Info("running the down database migrations")
 		err = m.Down()
 		if err != nil && err != migrate.ErrNoChange {
 			return errors.Wrap(err, wrapMsg)
@@ -60,7 +47,7 @@ func runSchemaMigrations(logger *log.Logger, dbURI string, reinit bool) error {
 	}
 
 	// Run the up migrations.
-	logger.Info("running the up database migrations")
+	log.Info("running the up database migrations")
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return errors.Wrap(err, wrapMsg)
@@ -70,25 +57,25 @@ func runSchemaMigrations(logger *log.Logger, dbURI string, reinit bool) error {
 }
 
 func main() {
-	logger := log.NewLogger(buildLoggerEntry())
+	log := log.WithFields(logrus.Fields{"context": "main"})
 
 	var tracerCtx, cancel = context.WithCancel(context.Background())
 	defer cancel()
-	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { logger.Fatal(e) })
+	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, config.ServiceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
 
 	// Load the configuration.
 	spec, err := config.LoadConfig()
 	if err != nil {
-		logger.Fatalf("unable to load the configuration: %s", err.Error())
+		log.Fatalf("unable to load the configuration: %s", err.Error())
 	}
 
 	// Run the schema migrations.
-	err = runSchemaMigrations(logger, spec.DatabaseURI, spec.ReinitDB)
+	err = runSchemaMigrations(spec.DatabaseURI, spec.ReinitDB)
 	if err != nil {
-		logger.Fatal(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	// Initialize the server.
-	server.Init(logger, spec)
+	server.Init(spec)
 }

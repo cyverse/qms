@@ -35,13 +35,15 @@ require (
 	github.com/cyverse-de/dbutil v0.0.0-20210914212612-2b941729c90a
 	github.com/lib/pq v1.10.2
 	golang.org/x/crypto v0.0.0-20220210151621-f4118a5b28e2 // indirect
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
+	golang.org/x/sys v0.0.0-20220403205710-6acee93ad0eb // indirect
 )
 
 require (
+	github.com/cyverse-de/go-mod/logging v0.0.2
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/labstack/echo/v4 v4.7.2
+	github.com/spirosoik/echo-logrus v1.0.0
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.1.8
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.31.0
 )
