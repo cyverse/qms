@@ -5,9 +5,13 @@ import (
 	"net/http"
 
 	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/QMS/logging"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
+
+var log = logging.GetLogger().WithFields(logrus.Fields{"package": "controllers"})
 
 // Server defines the REST API of the QMS
 type Server struct {
