@@ -1,21 +1,20 @@
 package server
 
 import (
-	"github.com/cyverse-de/echo-middleware/v2/log"
 	"github.com/cyverse-de/echo-middleware/v2/redoc"
 	"github.com/cyverse/QMS/internal/controllers"
+	"github.com/cyverse/QMS/logging"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func InitRouter(logger *log.Logger) *echo.Echo {
-
+func InitRouter() *echo.Echo {
 	// Create the web server.
 	e := echo.New()
 
 	// Set a custom logger.
-	e.Logger = logger
+	e.Logger = logging.GetEchoLogger(log)
 
 	// Add middleware.
 	e.Use(otelecho.Middleware("QMS"))
