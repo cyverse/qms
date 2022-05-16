@@ -21,7 +21,7 @@ func Init(spec *config.Specification) {
 	log.Info("establishing the database connection")
 	db, gormdb, err := db.Init("postgres", spec.DatabaseURI)
 	if err != nil {
-		e.Logger.Fatalf("service initialization failed: %s", err.Error())
+		log.Fatalf("service initialization failed: %s", err.Error())
 	}
 
 	s := controllers.Server{
