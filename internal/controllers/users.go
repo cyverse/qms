@@ -47,7 +47,7 @@ const (
 type Result struct {
 	ID             *string
 	UserName       string
-	ResourceTypeId *string
+	ResourceTypeID *string
 }
 
 // GetUserPlanDetails returns information about the currently active plan for the user.
