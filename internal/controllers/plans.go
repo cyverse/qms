@@ -153,7 +153,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 			}
 			dbPlan.PlanQuotaDefaults[i].ResourceType = *resourceType
 
-			log.Debug("adding plan quota default resource %s to plan %s", *resourceType, plan.Name)
+			log.Debugf("adding plan quota default resource %s to plan %s", resourceType.Name, plan.Name)
 		}
 
 		log.Debug("adding plan to the database")

@@ -98,7 +98,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
-		log.Debugf("returning plan ID %s", result.PlanID)
+		log.Debugf("returning plan ID %s", *result.PlanID)
 
 		// Return the user plan.
 		return model.Success(ctx, result, http.StatusOK)
@@ -309,7 +309,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
-		log.Debugf("got the current usage of %d", currentUsage.Usage)
+		log.Debugf("got the current usage of %f", currentUsage.Usage)
 
 		// Update the new usage based on the values in the request body.
 		switch usage.UpdateType {
@@ -322,7 +322,7 @@ func (s Server) AddUsages(ctx echo.Context) error {
 			return model.Error(ctx, msg, http.StatusBadRequest)
 		}
 
-		log.Debugf("calculated the new usage to be %d", newUsage.Usage)
+		log.Debugf("calculated the new usage to be %f", newUsage.Usage)
 
 		// Either add the new usage record or update the existing one.
 		err = tx.WithContext(context).Debug().Clauses(clause.OnConflict{

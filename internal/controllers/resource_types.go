@@ -99,7 +99,7 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 		return model.Error(ctx, msg, http.StatusConflict)
 	}
 
-	log.Debugf("added resource type, ID is %s", resourceType.ID)
+	log.Debugf("added resource type, ID is %s", *resourceType.ID)
 
 	return model.Success(ctx, resourceType, http.StatusOK)
 }
