@@ -8,6 +8,7 @@ import (
 	"github.com/cyverse-de/echo-middleware/v2/params"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -34,11 +35,17 @@ func extractResourceTypeID(ctx echo.Context) (string, error) {
 // ListResourceTypes is the handler for the GET /v1/resource-types and GET /v1/resource-types endpoints.
 func (s Server) ListResourceTypes(ctx echo.Context) error {
 	var data []model.ResourceType
+
+	log := log.WithFields(logrus.Fields{"context": "listing resource types"})
+
 	err := s.GORMDB.Debug().Find(&data).Error
 	if err != nil {
 		msg := fmt.Sprintf("unable to list resource types: %s", err)
 		return model.Error(ctx, msg, http.StatusInternalServerError)
 	}
+
+	log.Debug("found resource types to return")
+
 	return model.Success(ctx, data, http.StatusOK)
 }
 
@@ -58,6 +65,8 @@ func (s Server) ListResourceTypes(ctx echo.Context) error {
 func (s Server) AddResourceType(ctx echo.Context) error {
 	var err error
 
+	log := log.WithFields(logrus.Fields{"context": "adding resource type"})
+
 	//  Extract and validate the request body.
 	var resourceType model.ResourceType
 	if err = ctx.Bind(&resourceType); err != nil {
@@ -68,6 +77,8 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 		msg := "the resource type name and unit are both required"
 		return model.Error(ctx, msg, http.StatusBadRequest)
 	}
+
+	log.Debugf("adding resource type %s with unit %s", resourceType.Name, resourceType.Unit)
 
 	// Guard against the case where the ID is specified in the request body, which breaks our duplicate check.
 	resourceType.ID = nil
@@ -88,6 +99,8 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 		return model.Error(ctx, msg, http.StatusConflict)
 	}
 
+	log.Debugf("added resource type, ID is %s", *resourceType.ID)
+
 	return model.Success(ctx, resourceType, http.StatusOK)
 }
 
@@ -107,11 +120,16 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 	var err error
 
+	log := log.WithFields(logrus.Fields{"context": "getting resource type details"})
+
 	// Extract and validate the resource type ID.
 	resourceTypeID, err := extractResourceTypeID(ctx)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+
+	log = log.WithFields(logrus.Fields{"resourceTypeID": resourceTypeID})
+	log.Debugf("extracted resource type ID %s", resourceTypeID)
 
 	// Look up the resource type.
 	resourceType := model.ResourceType{ID: &resourceTypeID}
@@ -123,6 +141,8 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 		msg := fmt.Sprintf("unable to look up the resource type: %s", err)
 		return model.Error(ctx, msg, http.StatusInternalServerError)
 	}
+
+	log.Debug("found resource type information to return")
 
 	return model.Success(ctx, &resourceType, http.StatusOK)
 }
@@ -141,6 +161,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 
 // UpdateResourceType is the handler for the PUT /v1/resource-types/{resource_type_id} endpoint.
 func (s Server) UpdateResourceType(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "updating resource type"})
 	context := ctx.Request().Context()
 	var err error
 
@@ -149,6 +170,8 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+
+	log = log.WithFields(logrus.Fields{"resourceTypeID": resourceTypeID})
 
 	//  Extract and validate the request body.
 	var inboundResourceType model.ResourceType
@@ -160,6 +183,8 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 		msg := "the resource type name and unit are both required"
 		return model.Error(ctx, msg, http.StatusBadRequest)
 	}
+
+	log.Debug("extracted and validated the request body")
 
 	// Perform these steps in a transaction to ensure consistency.
 	existingResourceType := model.ResourceType{ID: &resourceTypeID}
@@ -176,6 +201,8 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, msg)
 		}
 
+		log.Debug("verified that the resource type exists")
+
 		// Update the resource type.
 		existingResourceType.Name = inboundResourceType.Name
 		existingResourceType.Unit = inboundResourceType.Unit
@@ -185,11 +212,15 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, msg)
 		}
 
+		log.Debugf("updated resource type to name: %s, unit: %s", existingResourceType.Name, existingResourceType.Unit)
+
 		return nil
 	})
 	if err != nil {
 		return model.HTTPError(ctx, err.(*echo.HTTPError))
 	}
+
+	log.Debug("returning success status")
 
 	return model.Success(ctx, existingResourceType, http.StatusOK)
 }

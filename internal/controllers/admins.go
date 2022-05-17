@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/cyverse/QMS/internal/db"
+	"github.com/sirupsen/logrus"
 
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -11,21 +12,35 @@ import (
 
 func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	var err error
+
+	log := log.WithFields(logrus.Fields{"context": "getting all user usages"})
+
 	context := ctx.Request().Context()
+
 	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
+
+	log = log.WithFields(logrus.Fields{"user": username})
+	log.Debug("got user from request")
 
 	var user model.User
 	err = s.GORMDB.WithContext(context).Where("username=?", username).Find(&user).Error
 	if err != nil {
 		return model.Error(ctx, "user name not found", http.StatusInternalServerError)
 	}
+
+	log.Debug("got user from database")
+
 	activePlan, err := db.GetActiveUserPlan(context, s.GORMDB, username)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
+
+	log = log.WithFields(logrus.Fields{"activePlan": activePlan.Plan.Name})
+	log.Debug("got the active plan for the user from the database")
+
 	var userPlan model.UserPlan
 	err = s.GORMDB.WithContext(context).
 		Preload("Usages").
@@ -37,11 +52,17 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
+
+	log.Debug("got the usages from the database")
+
 	return model.Success(ctx, userPlan.Usages, http.StatusOK)
 }
 
 func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "getting all active user plans"})
+
 	context := ctx.Request().Context()
+
 	var userPlans []model.UserPlan
 	err := s.GORMDB.WithContext(context).
 		Preload("User").
@@ -60,5 +81,8 @@ func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
+
+	log.Debug("got user plans from the database")
+
 	return model.Success(ctx, userPlans, http.StatusOK)
 }
