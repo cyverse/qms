@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/cyverse-de/go-mod/cfg"
+	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse/QMS/config"
 	"github.com/cyverse/QMS/logging"
@@ -12,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -57,6 +63,22 @@ func runSchemaMigrations(dbURI string, reinit bool) error {
 }
 
 func main() {
+	var (
+		err error
+
+		configPath    = flag.String("config", cfg.DefaultConfigPath, "Path to the config file")
+		dotEnvPath    = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		tlsCert       = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
+		tlsKey        = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
+		caCert        = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
+		credsPath     = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
+		maxReconnects = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
+		reconnectWait = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
+		natsSubject   = flag.String("subject", "discoenv.qms.>", "NATS subject to subscribe to")
+		natsQueue     = flag.String("queue", "discoenv_qms", "Name of the NATS queue to use")
+		envPrefix     = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
+	)
+
 	log := log.WithFields(logrus.Fields{"context": "main"})
 
 	var tracerCtx, cancel = context.WithCancel(context.Background())
@@ -65,16 +87,62 @@ func main() {
 	defer shutdown()
 
 	// Load the configuration.
-	spec, err := config.LoadConfig()
+	spec, err := config.LoadConfig(*envPrefix, *configPath, *dotEnvPath)
 	if err != nil {
 		log.Fatalf("unable to load the configuration: %s", err.Error())
 	}
+
+	log.Infof("NATS URLs are %s", spec.NatsCluster)
+	log.Infof("NATS TLS cert file is %s", *tlsCert)
+	log.Infof("NATS TLS key file is %s", *tlsKey)
+	log.Infof("NATS CA cert file is %s", *caCert)
+	log.Infof("NATS creds file is %s", *credsPath)
+	log.Infof("NATS subject is %s", *natsSubject)
+	log.Infof("NATS queue is %s", *natsQueue)
 
 	// Run the schema migrations.
 	err = runSchemaMigrations(spec.DatabaseURI, spec.ReinitDB)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	nc, err := nats.Connect(
+		spec.NatsCluster,
+		nats.UserCredentials(*credsPath),
+		nats.RootCAs(*caCert),
+		nats.ClientCert(*tlsCert, *tlsKey),
+		nats.RetryOnFailedConnect(true),
+		nats.MaxReconnects(*maxReconnects),
+		nats.ReconnectWait(time.Duration(*reconnectWait)*time.Second),
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			log.Errorf("disconnected from nats: %s", err.Error())
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			log.Infof("reconnected to %s", nc.ConnectedUrl())
+		}),
+		nats.ClosedHandler(func(nc *nats.Conn) {
+			log.Errorf("connection closed: %s", nc.LastError().Error())
+		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("configured servers: %s", strings.Join(nc.Servers(), " "))
+	log.Infof("connected to NATS host: %s", nc.ConnectedServerName())
+
+	conn, err := nats.NewEncodedConn(nc, "protojson")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("set up encoded connection to NATS")
+
+	if _, err = conn.QueueSubscribe(*natsSubject, *natsQueue, server.GetNATSHandler()); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("subscribed to NATS queue")
 
 	// Initialize the server.
 	server.Init(spec)

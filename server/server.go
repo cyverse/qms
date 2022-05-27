@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse/QMS/internal/controllers"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/logging"
+	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,4 +38,8 @@ func Init(spec *config.Specification) {
 	RegisterHandlers(s)
 	log.Info("starting the service")
 	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
+}
+
+func GetNATSHandler() nats.Handler {
+	return nil
 }
