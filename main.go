@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
@@ -17,7 +15,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -92,6 +89,15 @@ func main() {
 		log.Fatalf("unable to load the configuration: %s", err.Error())
 	}
 
+	spec.CACertPath = *caCert
+	spec.TLSCertPath = *tlsCert
+	spec.TLSKeyPath = *tlsKey
+	spec.CredsPath = *credsPath
+	spec.BaseQueueName = *natsQueue
+	spec.BaseSubject = *natsSubject
+	spec.MaxReconnects = *maxReconnects
+	spec.ReconnectWait = *reconnectWait
+
 	log.Infof("NATS URLs are %s", spec.NatsCluster)
 	log.Infof("NATS TLS cert file is %s", *tlsCert)
 	log.Infof("NATS TLS key file is %s", *tlsKey)
@@ -106,43 +112,8 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	nc, err := nats.Connect(
-		spec.NatsCluster,
-		nats.UserCredentials(*credsPath),
-		nats.RootCAs(*caCert),
-		nats.ClientCert(*tlsCert, *tlsKey),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(*maxReconnects),
-		nats.ReconnectWait(time.Duration(*reconnectWait)*time.Second),
-		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			log.Errorf("disconnected from nats: %s", err.Error())
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Infof("reconnected to %s", nc.ConnectedUrl())
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Errorf("connection closed: %s", nc.LastError().Error())
-		}),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("configured servers: %s", strings.Join(nc.Servers(), " "))
-	log.Infof("connected to NATS host: %s", nc.ConnectedServerName())
-
-	conn, err := nats.NewEncodedConn(nc, "protojson")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("set up encoded connection to NATS")
-
-	if _, err = conn.QueueSubscribe(*natsSubject, *natsQueue, server.GetNATSHandler()); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("subscribed to NATS queue")
+	// Initialize the NATS connection. Does not block.
+	server.InitNATS(spec)
 
 	// Initialize the server.
 	server.Init(spec)
