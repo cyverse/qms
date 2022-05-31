@@ -35,6 +35,9 @@ func LoadConfig(envPrefix, configPath, dotEnvPath string) (*Specification, error
 		StrictMerge: false,
 		FileType:    cfg.YAML,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	var s Specification
 

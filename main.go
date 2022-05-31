@@ -9,12 +9,14 @@ import (
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/otelutils"
+	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/cyverse/QMS/config"
 	"github.com/cyverse/QMS/logging"
 	"github.com/cyverse/QMS/server"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -76,12 +78,16 @@ func main() {
 		envPrefix     = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
 	)
 
+	flag.Parse()
+
 	log := log.WithFields(logrus.Fields{"context": "main"})
 
 	var tracerCtx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, config.ServiceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
+
+	nats.RegisterEncoder("protojson", &protobufjson.Codec{})
 
 	// Load the configuration.
 	spec, err := config.LoadConfig(*envPrefix, *configPath, *dotEnvPath)

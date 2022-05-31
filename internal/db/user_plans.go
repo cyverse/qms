@@ -129,7 +129,7 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[s
 			"user_plans.id as user_plan_id",
 			"users.username",
 			"plans.name as plan_name",
-			"resource_type.name as resource_type_name",
+			"resource_types.name as resource_type_name",
 			"quotas.quota",
 			"usages.usage",
 		).
@@ -166,7 +166,7 @@ func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName s
 			"user_plans.id as user_plan_id",
 			"users.username",
 			"plans.name as plan_name",
-			"resource_type.name as resource_type_name",
+			"resource_types.name as resource_type_name",
 			"quotas.quota",
 			"usages.usage",
 		).

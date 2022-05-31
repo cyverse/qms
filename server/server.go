@@ -84,5 +84,8 @@ func InitNATS(spec *config.Specification) {
 }
 
 func GetNATSHandler() nats.Handler {
-	return nil
+	return func(m *nats.Msg) {
+		log.Infof("received message on subject %s", m.Subject)
+		log.Infof("reply subject is %s", m.Reply)
+	}
 }
