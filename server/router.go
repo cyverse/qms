@@ -53,8 +53,8 @@ func RegisterHandlers(s controllers.Server) {
 	users.GET("/:username/plan", s.GetUserPlanDetails)
 
 	users.GET("", s.GetAllUsers)
-	users.PUT("/:user_name", s.AddUser)
-	users.PUT("/:user_name/:plan_name", s.UpdateUserPlan)
+	users.PUT("/:username", s.AddUser)
+	users.PUT("/:username/:plan_name", s.UpdateUserPlan)
 	users.POST("/quota", s.AddQuota)
 	users.GET("/all_active_users", s.GetAllActiveUserPlans)
 

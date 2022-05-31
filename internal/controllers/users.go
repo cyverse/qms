@@ -112,7 +112,7 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := ctx.Param("user_name")
+	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -160,7 +160,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 
 	log.Debugf("plan name from request is %s", planName)
 
-	username := ctx.Param("user_name")
+	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
