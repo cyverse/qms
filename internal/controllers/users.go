@@ -105,6 +105,31 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 	})
 }
 
+func (s Server) GetUserOverages(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "getting any overages for the user"})
+
+	context := ctx.Request().Context()
+
+	username := ctx.Param("username")
+	if username == "" {
+		return model.Error(ctx, "missing username", http.StatusBadRequest)
+	}
+
+	log.WithFields(logrus.Fields{"user": username})
+
+	log.Info("looking up any overages")
+
+	log.Debug("before calling db.GetUserOverages()")
+	results, err := db.GetUserOverages(context, s.GORMDB, username)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+	log.Debug("after calling db.GetUserOverages()")
+
+	return model.Success(ctx, results, http.StatusOK)
+
+}
+
 // AddUser adds a new user to the database. This is a no-op if the user already
 // exists.
 func (s Server) AddUser(ctx echo.Context) error {

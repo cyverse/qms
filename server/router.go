@@ -45,6 +45,13 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Gets a users's current plan details
 	users.GET("/:username/plan", s.GetUserPlanDetails)
 
+	// GET /:username/resources/overages returns summaries of any usages that exceed the quota for the corresponding resource.
+	users.GET("/:username/resources/overages", s.GetUserOverages)
+
+	// GET /:username/resources/:resource-name/usage returns current usage.
+	// GET /:username/resources/:resource-name/quota returns current quota.
+	// GET /:username/resources/:resource-name/overage returns whether the usage exceeds the quota for the resource.
+
 	// Changes the user's current plan to one corresponding to plan name.
 	users.PUT("/:username/:plan_name", s.UpdateUserPlan)
 }
