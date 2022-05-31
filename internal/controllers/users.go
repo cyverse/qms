@@ -127,6 +127,33 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	log.Debug("after calling db.GetUserOverages()")
 
 	return model.Success(ctx, results, http.StatusOK)
+}
+
+func (s Server) IsOverage(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "checking if a user's usage is an overage"})
+
+	context := ctx.Request().Context()
+
+	username := ctx.Param("username")
+	if username == "" {
+		return model.Error(ctx, "missing username", http.StatusBadRequest)
+	}
+
+	resource := ctx.Param("resource-name")
+	if resource == "" {
+		return model.Error(ctx, "missing resource name", http.StatusBadRequest)
+	}
+
+	log.WithFields(logrus.Fields{"user": username, "resource": resource})
+
+	log.Info("checking if the usage is an overage")
+
+	results, err := db.IsOverage(context, s.GORMDB, username, resource)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	return model.Success(ctx, results, http.StatusOK)
 
 }
 

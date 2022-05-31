@@ -152,5 +152,52 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) (map[str
 	}
 
 	return retval, nil
+}
 
+func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName string) (map[string]interface{}, error) {
+	var err error
+
+	result := make(map[string]interface{})
+	retval := make(map[string]interface{})
+
+	err = db.WithContext(ctx).
+		Table("user_plans").
+		Select(
+			"user_plans.id as user_plan_id",
+			"users.username",
+			"plans.name as plan_name",
+			"resource_type.name as resource_type_name",
+			"quotas.quota",
+			"usages.usage",
+		).
+		Joins("JOIN users ON user_plans.user_id = users.id").
+		Joins("JOIN plans ON user_plans.plan_id = plans.id").
+		Joins("JOIN quotas ON user_plans.id = quotas.user_plan_id").
+		Joins("JOIN usages ON user_plans.id = usages.user_plan_id").
+		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
+		Where("users.username = ?", username).
+		Where("resource_types.name = ?", resourceName).
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		).
+		Where("usages.resource_type_id = quotas.resource_type_id").
+		Where("usages.usage >= quotas.quota").
+		Take(result).Error
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check for overage")
+	}
+
+	k := make([]string, 0)
+	for key := range retval {
+		k = append(k, key)
+	}
+
+	if len(k) > 0 {
+		retval["overage"] = true
+	} else {
+		retval["overage"] = false
+	}
+
+	return retval, nil
 }
