@@ -118,10 +118,10 @@ func DeactivateUserPlans(ctx context.Context, db *gorm.DB, userID string) error 
 	return nil
 }
 
-func GetUserOverages(ctx context.Context, db *gorm.DB, username string) (map[string]interface{}, error) {
+func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[string]interface{}, error) {
 	var err error
 
-	retval := make(map[string]interface{})
+	retval := make([]map[string]interface{}, 0)
 
 	err = db.WithContext(ctx).
 		Table("user_plans").
@@ -145,7 +145,7 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) (map[str
 		).
 		Where("usages.resource_type_id = quotas.resource_type_id").
 		Where("usages.usage >= quotas.quota").
-		Take(retval).Error
+		Find(&retval).Error
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to look up overages")
@@ -157,7 +157,7 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) (map[str
 func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName string) (map[string]interface{}, error) {
 	var err error
 
-	result := make(map[string]interface{})
+	result := make([]map[string]interface{}, 0)
 	retval := make(map[string]interface{})
 
 	err = db.WithContext(ctx).
@@ -183,7 +183,7 @@ func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName s
 		).
 		Where("usages.resource_type_id = quotas.resource_type_id").
 		Where("usages.usage >= quotas.quota").
-		Take(result).Error
+		Find(&result).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to check for overage")
 	}
