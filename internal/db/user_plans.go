@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -156,6 +157,14 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[s
 
 func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName string) (map[string]interface{}, error) {
 	var err error
+
+	rsc, err := GetResourceTypeByName(ctx, db, resourceName)
+	if err != nil {
+		return nil, err
+	}
+	if rsc == nil {
+		return nil, fmt.Errorf("resource type %s does not exist", resourceName)
+	}
 
 	result := make([]map[string]interface{}, 0)
 	retval := make(map[string]interface{})
