@@ -353,6 +353,10 @@ github.com/cyverse-de/go-mod/protobufjson v0.0.2 h1:pLCptbNGAuuVZ5q2l3sfRSHyqG3B
 github.com/cyverse-de/go-mod/protobufjson v0.0.2/go.mod h1:p/ASemjpl2GEFYb3Tt7N8RozViwonsK0fOm0LxYeCt8=
 github.com/cyverse-de/p/go/header v0.0.0-20220425195853-720402e94a27 h1:lNaaskytNEsPRyuSwmtoGfN2Qr6OG/fO/BzXYNNfths=
 github.com/cyverse-de/p/go/header v0.0.0-20220425195853-720402e94a27/go.mod h1:VHHZzBOwFQLfIrfIjK1FJlaKy00m4CFGufx4LhVXd8Q=
+github.com/cyverse-de/p/go/header v0.0.1 h1:YgI0DLIOvL6m0LF22tFUk3OHLtW5NCuNiaGqwkxv64s=
+github.com/cyverse-de/p/go/header v0.0.1/go.mod h1:VHHZzBOwFQLfIrfIjK1FJlaKy00m4CFGufx4LhVXd8Q=
+github.com/cyverse-de/p/go/qms v0.0.1 h1:jgG6NHN8rlH+BEXsOH8t7N7mnrpdY2rpVO/0SrLq5Og=
+github.com/cyverse-de/p/go/qms v0.0.1/go.mod h1:iugEL2/HHd/mSFHdL8KLMSEz65ElJkZFje7prcWNsiA=
 github.com/cyverse-de/p/go/svcerror v0.0.5 h1:WbUcU4VjbNU0agfrHJOCy9orAY72WJWo92b1vR3+3sw=
 github.com/cyverse-de/p/go/svcerror v0.0.5/go.mod h1:WCGIrhW0KXtSu86YhjU/JXG8LrZs5wJPBCH4wvnFYcQ=
 github.com/cznic/mathutil v0.0.0-20180504122225-ca4c9f2c1369/go.mod h1:e6NPNENfs9mPDVNRekM7lKScauxd5kXTr1Mfyig6TDM=

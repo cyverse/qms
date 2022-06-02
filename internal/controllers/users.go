@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -127,6 +128,14 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	log.Debug("after calling db.GetUserOverages()")
 
 	return model.Success(ctx, results, http.StatusOK)
+}
+
+func (s Server) ListOverages(subject, reply string, request *qms.AllUserOveragesRequest) {
+
+}
+
+func (s Server) InResourceOverage(subject, reply string, request *qms.UserResourceOveragesRequest) {
+
 }
 
 func (s Server) IsOverage(ctx echo.Context) error {

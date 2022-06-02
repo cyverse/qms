@@ -15,34 +15,33 @@ import (
 
 var log = logging.GetLogger().WithFields(logrus.Fields{"package": "server"})
 
-func Init(spec *config.Specification) {
-	log := log.WithFields(logrus.Fields{"context": "server init"})
-
-	e := InitRouter()
-
-	// Establish the database connection.
-	log.Info("establishing the database connection")
-	db, gormdb, err := db.Init("postgres", spec.DatabaseURI)
-	if err != nil {
-		log.Fatalf("service initialization failed: %s", err.Error())
-	}
-
-	s := controllers.Server{
-		Router:  e,
-		DB:      db,
-		GORMDB:  gormdb,
-		Service: "qms",
-		Title:   "serviceInfo.Title",   //TODO: correct this
-		Version: "serviceInfo.Version", //TODO:correct this
-	}
-
-	// Register the handlers.
-	RegisterHandlers(s)
-	log.Info("starting the service")
-	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
+func natsSubject(base string, fields ...string) string {
+	trimmed := strings.TrimSuffix(
+		strings.TrimSuffix(base, ".*"),
+		".>",
+	)
+	addFields := strings.Join(fields, ".")
+	return fmt.Sprintf("%s.%s", trimmed, addFields)
 }
 
-func InitNATS(spec *config.Specification) {
+func natsQueue(qBase string, fields ...string) string {
+	return fmt.Sprintf("%s.%s", qBase, strings.Join(fields, "."))
+}
+
+func queueSub(conn *nats.EncodedConn, spec *config.Specification, name string, handler nats.Handler) {
+	var err error
+
+	subject := natsSubject(spec.BaseSubject, name)
+	queue := natsQueue(spec.BaseQueueName, name)
+
+	if _, err = conn.QueueSubscribe(subject, queue, handler); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("subscribed to %s on queue %s", subject, queue)
+}
+
+func InitNATS(spec *config.Specification) *nats.EncodedConn {
 	nc, err := nats.Connect(
 		spec.NatsCluster,
 		nats.UserCredentials(spec.CredsPath),
@@ -75,17 +74,39 @@ func InitNATS(spec *config.Specification) {
 
 	log.Infof("set up encoded connection to NATS")
 
-	// TODO: add logic for routing based on subject. Generate queue names.
-	if _, err = conn.QueueSubscribe(spec.BaseSubject, spec.BaseQueueName, GetNATSHandler()); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("subscribed to NATS queue")
+	return conn
 }
 
-func GetNATSHandler() nats.Handler {
-	return func(m *nats.Msg) {
-		log.Infof("received message on subject %s", m.Subject)
-		log.Infof("reply subject is %s", m.Reply)
+func Init(spec *config.Specification) {
+	log := log.WithFields(logrus.Fields{"context": "server init"})
+
+	e := InitRouter()
+
+	// Establish the database connection.
+	log.Info("establishing the database connection")
+	db, gormdb, err := db.Init("postgres", spec.DatabaseURI)
+	if err != nil {
+		log.Fatalf("service initialization failed: %s", err.Error())
 	}
+
+	conn := InitNATS(spec)
+
+	s := controllers.Server{
+		Router:   e,
+		DB:       db,
+		GORMDB:   gormdb,
+		Service:  "qms",
+		Title:    "serviceInfo.Title",   //TODO: correct this
+		Version:  "serviceInfo.Version", //TODO:correct this
+		NATSConn: conn,
+	}
+
+	// Register the handlers.
+	RegisterHandlers(s)
+
+	queueSub(conn, spec, "user-overages", s.ListOverages)
+	queueSub(conn, spec, "in-resource-overage", s.InResourceOverage)
+
+	log.Info("starting the service")
+	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
 }

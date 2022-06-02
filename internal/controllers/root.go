@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/cyverse/QMS/logging"
 	"github.com/labstack/echo/v4"
+	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -15,12 +16,13 @@ var log = logging.GetLogger().WithFields(logrus.Fields{"package": "controllers"}
 
 // Server defines the REST API of the QMS
 type Server struct {
-	Router  *echo.Echo
-	DB      *sql.DB
-	GORMDB  *gorm.DB
-	Service string
-	Title   string
-	Version string
+	Router   *echo.Echo
+	DB       *sql.DB
+	GORMDB   *gorm.DB
+	Service  string
+	Title    string
+	Version  string
+	NATSConn *nats.EncodedConn
 }
 
 // ServerInfo returns basic information about the server.

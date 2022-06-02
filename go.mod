@@ -52,7 +52,8 @@ require (
 )
 
 require (
-	github.com/cyverse-de/p/go/header v0.0.0-20220425195853-720402e94a27 // indirect
+	github.com/cyverse-de/p/go/header v0.0.1 // indirect
+	github.com/cyverse-de/p/go/qms v0.0.1 // indirect
 	github.com/cyverse-de/p/go/svcerror v0.0.5 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
