@@ -8,7 +8,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/p/go/qms"
+	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -131,11 +133,91 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 }
 
 func (s Server) ListOverages(subject, reply string, request *qms.AllUserOveragesRequest) {
+	var err error
 
+	log := log.WithFields(logrus.Fields{"context": "list overages"})
+
+	responseList := &qms.OverageList{
+		Header:   gotelnats.NewHeader(),
+		Overages: make([]*qms.Overage, 0),
+	}
+
+	if request.Header == nil {
+		request.Header = gotelnats.NewHeader()
+	}
+
+	carrier := gotelnats.PBTextMapCarrier{
+		Header: request.Header,
+	}
+
+	ctx, span := gotelnats.StartSpan(&carrier, subject, gotelnats.Process)
+	defer span.End()
+
+	username := request.Username
+
+	results, err := db.GetUserOverages(ctx, s.GORMDB, username)
+	if err != nil {
+		responseList.Error = gotelnats.InitServiceError(
+			ctx, err, &gotelnats.ErrorOptions{
+				ErrorCode: svcerror.ErrorCode_INTERNAL,
+			},
+		)
+
+	}
+	log.Debug("after calling db.GetUserOverages()")
+
+	if results != nil {
+		for _, r := range results {
+			responseList.Overages = append(responseList.Overages, &qms.Overage{
+				ResourceName: r["resource_type_name"].(string),
+				Quota:        r["quota"].(float32),
+				Usage:        r["usage"].(float32),
+			})
+		}
+	}
+
+	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, responseList); err != nil {
+		log.Error(err)
+	}
 }
 
-func (s Server) InResourceOverage(subject, reply string, request *qms.UserResourceOveragesRequest) {
+func (s Server) InResourceOverage(subject, reply string, request *qms.IsOverageRequest) {
+	var err error
 
+	log := log.WithFields(logrus.Fields{"context": "check if in overage"})
+
+	response := &qms.IsOverage{
+		Header: gotelnats.NewHeader(),
+	}
+
+	if request.Header == nil {
+		request.Header = gotelnats.NewHeader()
+	}
+
+	carrier := gotelnats.PBTextMapCarrier{
+		Header: request.Header,
+	}
+
+	ctx, span := gotelnats.StartSpan(&carrier, subject, gotelnats.Process)
+	defer span.End()
+
+	results, err := db.IsOverage(ctx, s.GORMDB, request.GetUsername(), request.GetResourceName())
+	if err != nil {
+		response.Error = gotelnats.InitServiceError(
+			ctx, err, &gotelnats.ErrorOptions{
+				ErrorCode: svcerror.ErrorCode_INTERNAL,
+			},
+		)
+	}
+	log.Debug("after calling db.IsOverage()")
+
+	if results != nil {
+		response.IsOverage = results["quota"].(float32) < results["usage"].(float32)
+	}
+
+	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
+		log.Error(err)
+	}
 }
 
 func (s Server) IsOverage(ctx echo.Context) error {

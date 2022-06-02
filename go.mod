@@ -1,6 +1,6 @@
 module github.com/cyverse/QMS
 
-go 1.17
+go 1.18
 
 require (
 	github.com/cyverse-de/echo-middleware/v2 v2.0.2
@@ -43,6 +43,8 @@ require (
 	github.com/cyverse-de/go-mod/logging v0.0.2
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
 	github.com/cyverse-de/go-mod/protobufjson v0.0.2
+	github.com/cyverse-de/p/go/qms v0.0.1
+	github.com/cyverse-de/p/go/svcerror v0.0.5
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/nats-io/nats.go v1.14.0
@@ -53,8 +55,6 @@ require (
 
 require (
 	github.com/cyverse-de/p/go/header v0.0.1 // indirect
-	github.com/cyverse-de/p/go/qms v0.0.1 // indirect
-	github.com/cyverse-de/p/go/svcerror v0.0.5 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
