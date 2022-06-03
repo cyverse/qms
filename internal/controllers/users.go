@@ -187,7 +187,8 @@ func (s Server) InResourceOverage(subject, reply string, request *qms.IsOverageR
 	log := log.WithFields(logrus.Fields{"context": "check if in overage"})
 
 	response := &qms.IsOverage{
-		Header: gotelnats.NewHeader(),
+		Header:    gotelnats.NewHeader(),
+		IsOverage: false,
 	}
 
 	if request.Header == nil {
@@ -211,9 +212,13 @@ func (s Server) InResourceOverage(subject, reply string, request *qms.IsOverageR
 	}
 	log.Debug("after calling db.IsOverage()")
 
+	log.Debugf("results are %+v\n", results)
+
 	if results != nil {
-		response.IsOverage = results["quota"].(float32) < results["usage"].(float32)
+		response.IsOverage = results["overage"].(bool)
 	}
+
+	log.Debugf("response are %+v\n", response.IsOverage)
 
 	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
 		log.Error(err)
