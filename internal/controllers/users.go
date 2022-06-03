@@ -108,6 +108,8 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 	})
 }
 
+// GetUserOverages is the echo handler for listing the resources that a user is
+// in overage for.
 func (s Server) GetUserOverages(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "getting any overages for the user"})
 
@@ -132,6 +134,8 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	return model.Success(ctx, results, http.StatusOK)
 }
 
+// ListOverages is the NATS handler for listing all of the resources that a user
+// is in overage for.
 func (s Server) ListOverages(subject, reply string, request *qms.AllUserOveragesRequest) {
 	var err error
 
@@ -181,6 +185,8 @@ func (s Server) ListOverages(subject, reply string, request *qms.AllUserOverages
 	}
 }
 
+// InResourceOverage is the NATS handler for checking if a user is in overage
+// for a particular resource type.
 func (s Server) InResourceOverage(subject, reply string, request *qms.IsOverageRequest) {
 	var err error
 
@@ -225,6 +231,8 @@ func (s Server) InResourceOverage(subject, reply string, request *qms.IsOverageR
 	}
 }
 
+// IsOverage is the echo handler for checking if a user is in overage for a
+// resource.
 func (s Server) IsOverage(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "checking if a user's usage is an overage"})
 
