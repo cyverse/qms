@@ -49,7 +49,7 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	users.GET("/:username/resources/overages", s.GetUserOverages)
 
 	// GET /:username/resources/:resource-name/overage returns whether the usage exceeds the quota for the resource.
-	users.GET("/:username/resources/:resource-name/in-overage", s.IsOverage)
+	users.GET("/:username/resources/:resource-name/in-overage", s.InOverage)
 
 	// Changes the user's current plan to one corresponding to plan name.
 	users.PUT("/:username/:plan_name", s.UpdateUserPlan)

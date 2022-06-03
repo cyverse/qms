@@ -104,8 +104,8 @@ func Init(spec *config.Specification) {
 	// Register the handlers.
 	RegisterHandlers(s)
 
-	queueSub(conn, spec, "user-overages", s.ListOverages)
-	queueSub(conn, spec, "in-resource-overage", s.InResourceOverage)
+	queueSub(conn, spec, "user-overages", s.GetUserOveragesNATS)
+	queueSub(conn, spec, "in-resource-overage", s.InOverageNATS)
 
 	log.Info("starting the service")
 	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
