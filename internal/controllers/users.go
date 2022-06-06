@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/cyverse-de/go-mod/pbinit"
-	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
@@ -140,14 +139,7 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 		})
 	}
 
-	// We encode them here since the default JSON marshaller doesn't fully
-	// support protocol buffers.
-	encoded, err := protobufjson.Marshal(responseList)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	return model.Success(ctx, encoded, http.StatusOK)
+	return model.ProtobufJSON(ctx, responseList, http.StatusOK)
 }
 
 // InOverage is the echo handler for checking if a user is in overage for a
@@ -181,15 +173,7 @@ func (s Server) InOverage(ctx echo.Context) error {
 		response.IsOverage = results["overage"].(bool)
 	}
 
-	// Make sure the protocol buffers are encoded correctly by using the
-	// protobufjson package.
-	encoded, err := protobufjson.Marshal(response)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	return model.Success(ctx, encoded, http.StatusOK)
-
+	return model.ProtobufJSON(ctx, response, http.StatusOK)
 }
 
 // AddUser adds a new user to the database. This is a no-op if the user already

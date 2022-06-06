@@ -3,6 +3,7 @@ package model
 import (
 	"net/http"
 
+	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/labstack/echo/v4"
 )
 
@@ -56,6 +57,18 @@ func ErrorResponse(errStr string, status int) Response {
 		Error:  errStr,
 		Status: http.StatusText(status),
 	}
+}
+
+func ProtobufJSON(ctx echo.Context, data interface{}, status int) error {
+	cd := protobufjson.NewCodec(protobufjson.WithEmitUnpopulated())
+
+	// The blank subject is not needed for the encoding process.
+	encoded, err := cd.Encode("", data)
+	if err != nil {
+		return Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	return ctx.JSONBlob(status, encoded)
 }
 
 // Error sends a basic error response to the caller.
