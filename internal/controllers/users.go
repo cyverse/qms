@@ -132,14 +132,12 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	log.Debug("after calling db.GetUserOverages()")
 
 	responseList := pbinit.NewOverageList()
-	if results != nil {
-		for _, r := range results {
-			responseList.Overages = append(responseList.Overages, &qms.Overage{
-				ResourceName: r["resource_type_name"].(string),
-				Quota:        r["quota"].(float32),
-				Usage:        r["usage"].(float32),
-			})
-		}
+	for _, r := range results {
+		responseList.Overages = append(responseList.Overages, &qms.Overage{
+			ResourceName: r["resource_type_name"].(string),
+			Quota:        r["quota"].(float32),
+			Usage:        r["usage"].(float32),
+		})
 	}
 
 	// We encode them here since the default JSON marshaller doesn't fully

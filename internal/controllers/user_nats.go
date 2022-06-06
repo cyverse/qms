@@ -33,14 +33,12 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 	}
 	log.Debug("after calling db.GetUserOverages()")
 
-	if results != nil {
-		for _, r := range results {
-			responseList.Overages = append(responseList.Overages, &qms.Overage{
-				ResourceName: r["resource_type_name"].(string),
-				Quota:        r["quota"].(float32),
-				Usage:        r["usage"].(float32),
-			})
-		}
+	for _, r := range results {
+		responseList.Overages = append(responseList.Overages, &qms.Overage{
+			ResourceName: r["resource_type_name"].(string),
+			Quota:        r["quota"].(float32),
+			Usage:        r["usage"].(float32),
+		})
 	}
 
 	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, responseList); err != nil {
