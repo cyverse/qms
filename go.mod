@@ -42,6 +42,7 @@ require (
 	github.com/cyverse-de/go-mod/gotelnats v0.0.10
 	github.com/cyverse-de/go-mod/logging v0.0.2
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
+	github.com/cyverse-de/go-mod/pbinit v0.0.1
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
 	github.com/cyverse-de/p/go/qms v0.0.1
 	github.com/cyverse-de/p/go/svcerror v0.0.5
@@ -69,11 +70,9 @@ require (
 	github.com/knadh/koanf v1.4.1 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
-	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/nats-io/jwt/v2 v2.2.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.1.13 // indirect

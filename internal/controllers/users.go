@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
@@ -141,20 +142,8 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 
 	log := log.WithFields(logrus.Fields{"context": "list overages"})
 
-	responseList := &qms.OverageList{
-		Header:   gotelnats.NewHeader(),
-		Overages: make([]*qms.Overage, 0),
-	}
-
-	if request.Header == nil {
-		request.Header = gotelnats.NewHeader()
-	}
-
-	carrier := gotelnats.PBTextMapCarrier{
-		Header: request.Header,
-	}
-
-	ctx, span := gotelnats.StartSpan(&carrier, subject, gotelnats.Process)
+	responseList := pbinit.NewOverageList()
+	ctx, span := pbinit.InitAllUserOveragesRequest(request, subject)
 	defer span.End()
 
 	username := request.Username
@@ -188,24 +177,10 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 // InOverageNATS is the NATS handler for checking if a user is in overage
 // for a particular resource type.
 func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageRequest) {
-	var err error
-
 	log := log.WithFields(logrus.Fields{"context": "check if in overage"})
 
-	response := &qms.IsOverage{
-		Header:    gotelnats.NewHeader(),
-		IsOverage: false,
-	}
-
-	if request.Header == nil {
-		request.Header = gotelnats.NewHeader()
-	}
-
-	carrier := gotelnats.PBTextMapCarrier{
-		Header: request.Header,
-	}
-
-	ctx, span := gotelnats.StartSpan(&carrier, subject, gotelnats.Process)
+	response := pbinit.NewIsOverage()
+	ctx, span := pbinit.InitIsOverageRequest(request, subject)
 	defer span.End()
 
 	results, err := db.IsOverage(ctx, s.GORMDB, request.GetUsername(), request.GetResourceName())
@@ -216,15 +191,13 @@ func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageReque
 			},
 		)
 	}
-	log.Debug("after calling db.IsOverage()")
 
+	log.Debug("after calling db.IsOverage()")
 	log.Debugf("results are %+v\n", results)
 
 	if results != nil {
 		response.IsOverage = results["overage"].(bool)
 	}
-
-	log.Debugf("response are %+v\n", response.IsOverage)
 
 	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
 		log.Error(err)
