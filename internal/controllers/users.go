@@ -8,6 +8,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/cyverse-de/go-mod/pbinit"
+	"github.com/cyverse-de/go-mod/protobufjson"
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -128,7 +131,25 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	}
 	log.Debug("after calling db.GetUserOverages()")
 
-	return model.Success(ctx, results, http.StatusOK)
+	responseList := pbinit.NewOverageList()
+	if results != nil {
+		for _, r := range results {
+			responseList.Overages = append(responseList.Overages, &qms.Overage{
+				ResourceName: r["resource_type_name"].(string),
+				Quota:        r["quota"].(float32),
+				Usage:        r["usage"].(float32),
+			})
+		}
+	}
+
+	// We encode them here since the default JSON marshaller doesn't fully
+	// support protocol buffers.
+	encoded, err := protobufjson.Marshal(responseList)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	return model.Success(ctx, encoded, http.StatusOK)
 }
 
 // InOverage is the echo handler for checking if a user is in overage for a
@@ -157,7 +178,19 @@ func (s Server) InOverage(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 
-	return model.Success(ctx, results, http.StatusOK)
+	response := pbinit.NewIsOverage()
+	if results != nil {
+		response.IsOverage = results["overage"].(bool)
+	}
+
+	// Make sure the protocol buffers are encoded correctly by using the
+	// protobufjson package.
+	encoded, err := protobufjson.Marshal(response)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	return model.Success(ctx, encoded, http.StatusOK)
 
 }
 
