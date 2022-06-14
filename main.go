@@ -76,7 +76,7 @@ func main() {
 		natsSubject   = flag.String("subject", "cyverse.qms.>", "NATS subject to subscribe to")
 		natsQueue     = flag.String("queue", "cyveser_qms", "Name of the NATS queue to use")
 		envPrefix     = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
-		logLevel      = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
+		logLevel      = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
 
 	flag.Parse()
@@ -89,13 +89,19 @@ func main() {
 	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, config.ServiceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
 
+	log.Info("set up tracing")
+
 	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
+
+	log.Info("registered protojon codec for nats")
 
 	// Load the configuration.
 	spec, err := config.LoadConfig(*envPrefix, *configPath, *dotEnvPath)
 	if err != nil {
 		log.Fatalf("unable to load the configuration: %s", err.Error())
 	}
+
+	log.Info("loaded the configuration file")
 
 	spec.CACertPath = *caCert
 	spec.TLSCertPath = *tlsCert
