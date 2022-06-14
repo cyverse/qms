@@ -1,7 +1,7 @@
 all: QMS
 
 install-swagger:
-	which swagger || go get -u github.com/go-swagger/go-swagger/cmd/swagger
+	which swagger || go install github.com/go-swagger/go-swagger/cmd/swagger@latest
 
 swagger.json: install-swagger
 	swagger generate spec -o ./swagger.json --scan-models
