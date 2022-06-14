@@ -7,7 +7,7 @@ swagger.json: install-swagger
 	swagger generate spec -o ./swagger.json --scan-models
 
 QMS: swagger.json
-	go build .
+	go build --buildvcs=false .
 
 clean:
 	rm -rf QMS swagger.json 
