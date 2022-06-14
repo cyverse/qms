@@ -9,3 +9,7 @@ import (
 func GetLogger() *logrus.Entry {
 	return gomodlog.Log.WithFields(logrus.Fields{"service": config.ServiceName})
 }
+
+func SetupLogging(level string) {
+	gomodlog.SetupLogging(level)
+}

@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/cyverse-de/go-mod/pbinit"
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -105,6 +107,75 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 	})
 }
 
+// GetUserOverages is the echo handler for listing the resources that a user is
+// in overage for.
+func (s Server) GetUserOverages(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "getting any overages for the user"})
+
+	context := ctx.Request().Context()
+
+	username := ctx.Param("username")
+	if username == "" {
+		return model.Error(ctx, "missing username", http.StatusBadRequest)
+	}
+
+	log.WithFields(logrus.Fields{"user": username})
+
+	log.Info("looking up any overages")
+
+	log.Debug("before calling db.GetUserOverages()")
+	results, err := db.GetUserOverages(context, s.GORMDB, username)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+	log.Debug("after calling db.GetUserOverages()")
+
+	responseList := pbinit.NewOverageList()
+	for _, r := range results {
+		responseList.Overages = append(responseList.Overages, &qms.Overage{
+			ResourceName: r["resource_type_name"].(string),
+			Quota:        r["quota"].(float32),
+			Usage:        r["usage"].(float32),
+		})
+	}
+
+	return model.ProtobufJSON(ctx, responseList, http.StatusOK)
+}
+
+// InOverage is the echo handler for checking if a user is in overage for a
+// resource.
+func (s Server) InOverage(ctx echo.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "checking if a user's usage is an overage"})
+
+	context := ctx.Request().Context()
+
+	username := ctx.Param("username")
+	if username == "" {
+		return model.Error(ctx, "missing username", http.StatusBadRequest)
+	}
+
+	resource := ctx.Param("resource-name")
+	if resource == "" {
+		return model.Error(ctx, "missing resource name", http.StatusBadRequest)
+	}
+
+	log.WithFields(logrus.Fields{"user": username, "resource": resource})
+
+	log.Info("checking if the usage is an overage")
+
+	results, err := db.IsOverage(context, s.GORMDB, username, resource)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	response := pbinit.NewIsOverage()
+	if results != nil {
+		response.IsOverage = results["overage"].(bool)
+	}
+
+	return model.ProtobufJSON(ctx, response, http.StatusOK)
+}
+
 // AddUser adds a new user to the database. This is a no-op if the user already
 // exists.
 func (s Server) AddUser(ctx echo.Context) error {
@@ -112,7 +183,7 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := ctx.Param("user_name")
+	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -160,7 +231,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 
 	log.Debugf("plan name from request is %s", planName)
 
-	username := ctx.Param("user_name")
+	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}

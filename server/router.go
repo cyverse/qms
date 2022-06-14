@@ -29,6 +29,60 @@ func InitRouter() *echo.Echo {
 	return e
 }
 
+func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
+	// Lists all of the users.
+	users.GET("", s.GetAllUsers)
+
+	// Lists all of the active user plans.
+	users.GET("/all_active_users", s.GetAllActiveUserPlans)
+
+	// Updates or adds a quota (read as limit) to a user's current plan.
+	users.POST("/quota", s.AddQuota)
+
+	// Adds a new user to the database.
+	users.PUT("/:username", s.AddUser)
+
+	// Gets a users's current plan details
+	users.GET("/:username/plan", s.GetUserPlanDetails)
+
+	// GET /:username/resources/overages returns summaries of any usages that exceed the quota for the corresponding resource.
+	users.GET("/:username/resources/overages", s.GetUserOverages)
+
+	// GET /:username/resources/:resource-name/overage returns whether the usage exceeds the quota for the resource.
+	users.GET("/:username/resources/:resource-name/in-overage", s.InOverage)
+
+	// Changes the user's current plan to one corresponding to plan name.
+	users.PUT("/:username/:plan_name", s.UpdateUserPlan)
+}
+
+func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
+	// Returns a listing of all available plans
+	plans.GET("", s.GetAllPlans)
+
+	// Adds a plan to the database.
+	plans.POST("", s.AddPlan)
+
+	// Gets the details of a plan by its UUID.
+	plans.GET("/:plan_id", s.GetPlanByID)
+
+	// Adds or updates the quota defaults of a plan.
+	plans.POST("/quota-defaults", s.AddPlanQuotaDefault)
+}
+
+func registerResourceTypeEndpoints(resourceTypes *echo.Group, s *controllers.Server) {
+	// Lists the available resource types.
+	resourceTypes.GET("", s.ListResourceTypes)
+
+	// Adds a new resource type to the database
+	resourceTypes.POST("", s.AddResourceType)
+
+	// Get the details about a resource type.
+	resourceTypes.GET("/:resource_type_id", s.GetResourceTypeDetails)
+
+	// Update details for a resource type.
+	resourceTypes.PUT("/:resource_type_id", s.UpdateResourceType)
+}
+
 func RegisterHandlers(s controllers.Server) {
 
 	// The base URL acts as a health check endpoint.
@@ -38,31 +92,17 @@ func RegisterHandlers(s controllers.Server) {
 	v1 := s.Router.Group("/v1")
 	v1.GET("", s.V1RootHandler)
 
-	// Plans.
 	plans := v1.Group("/plans")
-	plans.GET("", s.GetAllPlans)
-	plans.POST("", s.AddPlan)
-	plans.GET("/:plan_id", s.GetPlanByID)
+	registerPlanEndpoints(plans, &s)
 
 	usages := v1.Group("/usages")
 	usages.GET("/:username", s.GetAllUsageOfUser)
 	usages.POST("", s.AddUsages)
 
-	// Users.
 	users := v1.Group("/users")
-	users.GET("/:username/plan", s.GetUserPlanDetails)
-
-	users.GET("", s.GetAllUsers)
-	users.PUT("/:user_name", s.AddUser)
-	users.PUT("/:user_name/:plan_name", s.UpdateUserPlan)
-	users.POST("/quota", s.AddQuota)
-	users.GET("/all_active_users", s.GetAllActiveUserPlans)
+	registerUserEndpoints(users, &s)
 
 	resourceTypes := v1.Group("/resource-types")
-	resourceTypes.GET("", s.ListResourceTypes)
-	resourceTypes.POST("", s.AddResourceType)
-	resourceTypes.GET("/:resource_type_id", s.GetResourceTypeDetails)
-	resourceTypes.PUT("/:resource_type_id", s.UpdateResourceType)
+	registerResourceTypeEndpoints(resourceTypes, &s)
 
-	plans.POST("/quota-defaults", s.AddPlanQuotaDefault)
 }

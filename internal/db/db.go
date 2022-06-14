@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/cyverse-de/dbutil"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // imported for postgres database suport
 
 	"github.com/pkg/errors"
 	"gorm.io/gorm"

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -116,4 +117,96 @@ func DeactivateUserPlans(ctx context.Context, db *gorm.DB, userID string) error 
 		return errors.Wrap(err, wrapMsg)
 	}
 	return nil
+}
+
+func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[string]interface{}, error) {
+	var err error
+
+	retval := make([]map[string]interface{}, 0)
+
+	err = db.WithContext(ctx).
+		Table("user_plans").
+		Select(
+			"user_plans.id as user_plan_id",
+			"users.username",
+			"plans.name as plan_name",
+			"resource_types.name as resource_type_name",
+			"quotas.quota",
+			"usages.usage",
+		).
+		Joins("JOIN users ON user_plans.user_id = users.id").
+		Joins("JOIN plans ON user_plans.plan_id = plans.id").
+		Joins("JOIN quotas ON user_plans.id = quotas.user_plan_id").
+		Joins("JOIN usages ON user_plans.id = usages.user_plan_id").
+		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
+		Where("users.username = ?", username).
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		).
+		Where("usages.resource_type_id = quotas.resource_type_id").
+		Where("usages.usage >= quotas.quota").
+		Find(&retval).Error
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to look up overages")
+	}
+
+	return retval, nil
+}
+
+func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName string) (map[string]interface{}, error) {
+	var err error
+
+	rsc, err := GetResourceTypeByName(ctx, db, resourceName)
+	if err != nil {
+		return nil, err
+	}
+	if rsc == nil {
+		return nil, fmt.Errorf("resource type %s does not exist", resourceName)
+	}
+
+	result := make([]map[string]interface{}, 0)
+	retval := make(map[string]interface{})
+
+	err = db.WithContext(ctx).
+		Table("user_plans").
+		Select(
+			"user_plans.id as user_plan_id",
+			"users.username",
+			"plans.name as plan_name",
+			"resource_types.name as resource_type_name",
+			"quotas.quota",
+			"usages.usage",
+		).
+		Joins("JOIN users ON user_plans.user_id = users.id").
+		Joins("JOIN plans ON user_plans.plan_id = plans.id").
+		Joins("JOIN quotas ON user_plans.id = quotas.user_plan_id").
+		Joins("JOIN usages ON user_plans.id = usages.user_plan_id").
+		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
+		Where("users.username = ?", username).
+		Where("resource_types.name = ?", resourceName).
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		).
+		Where("usages.resource_type_id = quotas.resource_type_id").
+		Where("usages.usage >= quotas.quota").
+		Find(&result).Error
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check for overage")
+	}
+
+	k := make([]string, 0)
+	for key := range retval {
+		k = append(k, key)
+	}
+
+	if len(k) > 0 {
+		retval["overage"] = true
+	} else {
+		retval["overage"] = false
+	}
+
+	return retval, nil
 }
