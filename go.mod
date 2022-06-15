@@ -34,14 +34,14 @@ require (
 	github.com/cyverse-de/dbutil v1.0.1
 	github.com/lib/pq v1.10.6
 	golang.org/x/crypto v0.0.0-20220517005047-85d78b3ac167 // indirect
-	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
+	golang.org/x/sys v0.0.0-20220614162138-6c1b26c55098 // indirect
 )
 
 require (
 	github.com/cyverse-de/go-mod/cfg v0.0.1
 	github.com/cyverse-de/go-mod/gotelnats v0.0.10
 	github.com/cyverse-de/go-mod/logging v0.0.2
-	github.com/cyverse-de/go-mod/otelutils v0.0.2
+	github.com/cyverse-de/go-mod/otelutils v0.0.3
 	github.com/cyverse-de/go-mod/pbinit v0.0.1
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
 	github.com/cyverse-de/p/go/qms v0.0.1
