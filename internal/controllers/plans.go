@@ -327,7 +327,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	log.Debug("got the user plan from the database")
 
 	var quota = model.Quota{
-		UserPlanID:     userPlan.PlanID,
+		UserPlanID:     userPlan.ID,
 		Quota:          quotaReq.QuotaValue,
 		ResourceTypeID: resource.ID,
 	}
