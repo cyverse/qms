@@ -126,9 +126,6 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	// Initialize the NATS connection. Does not block.
-	server.InitNATS(spec)
-
 	// Initialize the server.
 	server.Init(spec)
 }
