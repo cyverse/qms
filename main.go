@@ -74,7 +74,7 @@ func main() {
 		maxReconnects = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
 		reconnectWait = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
 		natsSubject   = flag.String("subject", "cyverse.qms.>", "NATS subject to subscribe to")
-		natsQueue     = flag.String("queue", "cyveser_qms", "Name of the NATS queue to use")
+		natsQueue     = flag.String("queue", "cyverse.qms", "Name of the NATS queue to use")
 		envPrefix     = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
 		logLevel      = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
