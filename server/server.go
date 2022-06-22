@@ -106,6 +106,8 @@ func Init(spec *config.Specification) {
 
 	queueSub(conn, spec, "user-overages", s.GetUserOveragesNATS)
 	queueSub(conn, spec, "in-resource-overage", s.InOverageNATS)
+	queueSub(conn, spec, "user.usages.add", s.AddUsagesNATS)
+	queueSub(conn, spec, "user.usages.get", s.GetUsagesNATS)
 
 	log.Info("starting the service")
 	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
