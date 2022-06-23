@@ -210,14 +210,14 @@ func (s Server) AddUsages(ctx echo.Context) error {
 		return model.Error(ctx, "invalid request body", http.StatusBadRequest)
 	}
 
-	log.Debug("validated usage information %+v", usage)
+	log.Debugf("validated usage information %+v", usage)
 
 	if err = s.addUsage(context, &usage); err != nil {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), httpStatusCode(err))
 	}
 
-	log.Debug("added usage inforamtion %+v", usage)
+	log.Debugf("added usage inforamtion %+v", usage)
 	successMsg := fmt.Sprintf("successfully updated the usage for: %s", usage.Username)
 
 	return model.SuccessMessage(ctx, successMsg, http.StatusOK)
