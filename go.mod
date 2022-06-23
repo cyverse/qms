@@ -42,9 +42,9 @@ require (
 	github.com/cyverse-de/go-mod/gotelnats v0.0.10
 	github.com/cyverse-de/go-mod/logging v0.0.2
 	github.com/cyverse-de/go-mod/otelutils v0.0.3
-	github.com/cyverse-de/go-mod/pbinit v0.0.2
+	github.com/cyverse-de/go-mod/pbinit v0.0.3
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
-	github.com/cyverse-de/p/go/qms v0.0.5
+	github.com/cyverse-de/p/go/qms v0.0.7
 	github.com/cyverse-de/p/go/svcerror v0.0.5
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/labstack/echo/v4 v4.7.2

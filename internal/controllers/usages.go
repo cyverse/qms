@@ -230,7 +230,7 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 	)
 
 	log := log.WithFields(logrus.Fields{"context": "adding usage information"})
-	response := pbinit.NewUsageList()
+	response := pbinit.NewUsageResponse()
 	ctx, span := pbinit.InitAddUsage(request, subject)
 	defer span.End()
 
@@ -247,6 +247,14 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 				ErrorCode: natsStatusCode(err),
 			},
 		)
+	} else {
+		u := qms.Usage{
+			Usage: request.UsageValue,
+			ResourceType: &qms.ResourceType{
+				Name: request.ResourceName,
+			},
+		}
+		response.Usage = &u
 	}
 
 	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
@@ -352,7 +360,7 @@ func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
 	for _, usage := range userPlan.Usages {
 		response.Usages = append(response.Usages, &qms.Usage{
 			Uuid:       *usage.ID,
-			Usage:      float32(usage.Usage), //TODO: make sure the usage value is a float64
+			Usage:      usage.Usage,
 			UserPlanId: *usage.UserPlanID,
 			ResourceType: &qms.ResourceType{
 				Uuid: *usage.ResourceType.ID,
