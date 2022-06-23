@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/p/go/qms"
+	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -23,27 +26,63 @@ type Usage struct {
 	UpdateType   string  `json:"update_type"`
 }
 
-func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error) {
-	var (
-		err           error
-		errStatusCode int
-		successMsg    string
-	)
+var (
+	ErrUserNotFound        = errors.New("user name not found")
+	ErrInvalidUsername     = errors.New("invalid username")
+	ErrInvalidResourceName = errors.New("invalid resource name")
+	ErrInvalidUsageValue   = errors.New("invalid usage value")
+	ErrInvalidUpdateType   = errors.New("invalid update type")
+)
 
+func httpStatusCode(err error) int {
+	switch err {
+	case ErrUserNotFound:
+		return http.StatusNotFound
+	case ErrInvalidUsername:
+		return http.StatusBadRequest
+	case ErrInvalidResourceName:
+		return http.StatusBadRequest
+	case ErrInvalidUsageValue:
+		return http.StatusBadRequest
+	case ErrInvalidUpdateType:
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func natsStatusCode(err error) svcerror.ErrorCode {
+	switch err {
+	case ErrUserNotFound:
+		return svcerror.ErrorCode_NOT_FOUND
+	case ErrInvalidUsername:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidResourceName:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidUsageValue:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidUpdateType:
+		return svcerror.ErrorCode_BAD_REQUEST
+	default:
+		return svcerror.ErrorCode_INTERNAL
+	}
+}
+
+func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 	if usage.Username == "" {
-		return http.StatusBadRequest, successMsg, errors.New("invalid username")
+		return ErrInvalidUsername
 	}
 
 	if usage.ResourceName == "" {
-		return http.StatusBadRequest, successMsg, errors.New("invalid resource name")
+		return ErrInvalidResourceName
 	}
 
 	if usage.UsageValue < 0 {
-		return http.StatusBadRequest, successMsg, errors.New("invalid usage value")
+		return ErrInvalidUsageValue
 	}
 
 	if usage.UpdateType == "" {
-		return http.StatusBadRequest, successMsg, errors.New("missing usage update type value")
+		return ErrInvalidUpdateType
 	}
 
 	log.Debug("validated usage information")
@@ -55,11 +94,10 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		"value":      usage.UsageValue,
 	})
 
-	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
 		userPlan, err := db.GetActiveUserPlan(ctx, tx, usage.Username)
 		if err != nil {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 
@@ -68,11 +106,9 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		// Look up the resource type.
 		resourceType, err := db.GetResourceTypeByName(ctx, tx, usage.ResourceName)
 		if err != nil {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 		if resourceType == nil {
-			errStatusCode = http.StatusBadRequest
 			return fmt.Errorf("resource type '%s' does not exist", usage.ResourceName)
 		}
 
@@ -89,11 +125,9 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		updateOperation := model.UpdateOperation{Name: usage.UpdateType}
 		err = tx.WithContext(ctx).Debug().First(&updateOperation).Error
 		if err == gorm.ErrRecordNotFound {
-			errStatusCode = http.StatusBadRequest
 			return errors.New("invalid update type")
 		}
 		if err != nil {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 
@@ -106,7 +140,6 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		}
 		err = tx.WithContext(ctx).Debug().First(&currentUsage).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 
@@ -119,7 +152,6 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		case UpdateTypeAdd:
 			newUsage.Usage = currentUsage.Usage + usage.UsageValue
 		default:
-			errStatusCode = http.StatusBadRequest
 			return fmt.Errorf("invalid update type: %s", usage.UpdateType)
 		}
 
@@ -138,7 +170,6 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 			UpdateAll: true,
 		}).Create(&newUsage).Error
 		if err != nil {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 
@@ -154,19 +185,13 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) (int, string, error)
 		}
 		err = tx.WithContext(ctx).Debug().Create(&update).Error
 		if err != nil {
-			errStatusCode = http.StatusInternalServerError
 			return err
 		}
 
 		log.Debug("recorded the update in the databse")
 
-		// Return a response to the caller.
-		errStatusCode = http.StatusOK
-		successMsg = fmt.Sprintf("successfully updated the usage for: %s", usage.Username)
 		return nil
 	})
-
-	return errStatusCode, successMsg, err
 }
 
 // AddUsages adds or updates the usage record for a user, plan, and resource type.
@@ -187,23 +212,86 @@ func (s Server) AddUsages(ctx echo.Context) error {
 
 	log.Debug("validated usage information %+v", usage)
 
-	statusCode, msg, err := s.addUsage(context, &usage)
-	if statusCode != http.StatusOK {
-		if err != nil {
-			log.Error(err)
-			return model.Error(ctx, err.Error(), statusCode)
-		}
-		log.Error(msg)
-		return model.Error(ctx, msg, statusCode)
+	if err = s.addUsage(context, &usage); err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), httpStatusCode(err))
 	}
 
 	log.Debug("added usage inforamtion %+v", usage)
+	successMsg := fmt.Sprintf("successfully updated the usage for: %s", usage.Username)
 
-	return model.SuccessMessage(ctx, msg, statusCode)
+	return model.SuccessMessage(ctx, successMsg, http.StatusOK)
 }
 
 func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
+	var (
+		err   error
+		usage Usage
+	)
 
+	log := log.WithFields(logrus.Fields{"context": "adding usage information"})
+	response := pbinit.NewUsageList()
+	ctx, span := pbinit.InitAddUsage(request, subject)
+	defer span.End()
+
+	usage = Usage{
+		Username:     request.Username,
+		ResourceName: request.ResourceName,
+		UsageValue:   request.UsageValue,
+		UpdateType:   request.UpdateType,
+	}
+
+	if err = s.addUsage(ctx, &usage); err != nil {
+		response.Error = gotelnats.InitServiceError(
+			ctx, err, &gotelnats.ErrorOptions{
+				ErrorCode: natsStatusCode(err),
+			},
+		)
+	}
+
+	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
+		log.Error(err)
+	}
+
+}
+
+func (s Server) userUsages(ctx context.Context, username string) (*model.UserPlan, error) {
+	var err error
+
+	log = log.WithFields(logrus.Fields{"user": username})
+	log.Debug("got user from request")
+
+	var user model.User
+	err = s.GORMDB.WithContext(ctx).Where("username=?", username).Find(&user).Error
+	if err != nil {
+		return nil, errors.New("user name not found")
+	}
+
+	log.Debug("got user from database")
+
+	activePlan, err := db.GetActiveUserPlan(ctx, s.GORMDB, username)
+	if err != nil {
+		return nil, err
+	}
+
+	log = log.WithFields(logrus.Fields{"activePlan": activePlan.Plan.Name})
+	log.Debug("got the active plan for the user from the database")
+
+	var userPlan model.UserPlan
+	err = s.GORMDB.WithContext(ctx).
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Where("user_id=?", user.ID).
+		Where("plan_id=?", activePlan.PlanID).
+		Find(&userPlan).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug("got the usages from the database")
+
+	return &userPlan, nil
 }
 
 func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
@@ -219,41 +307,64 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	}
 
 	log = log.WithFields(logrus.Fields{"user": username})
-	log.Debug("got user from request")
 
-	var user model.User
-	err = s.GORMDB.WithContext(context).Where("username=?", username).Find(&user).Error
+	userPlan, err := s.userUsages(context, username)
 	if err != nil {
-		return model.Error(ctx, "user name not found", http.StatusInternalServerError)
+		sCode := httpStatusCode(err)
+		log.Error(err)
+		return model.Error(ctx, err.Error(), sCode)
 	}
 
-	log.Debug("got user from database")
-
-	activePlan, err := db.GetActiveUserPlan(context, s.GORMDB, username)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	log = log.WithFields(logrus.Fields{"activePlan": activePlan.Plan.Name})
-	log.Debug("got the active plan for the user from the database")
-
-	var userPlan model.UserPlan
-	err = s.GORMDB.WithContext(context).
-		Preload("Usages").
-		Preload("Usages.ResourceType").
-		Where("user_id=?", user.ID).
-		Where("plan_id=?", activePlan.PlanID).
-		Find(&userPlan).Error
-
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	log.Debug("got the usages from the database")
+	log.Info("successfully found usages")
 
 	return model.Success(ctx, userPlan.Usages, http.StatusOK)
 }
 
 func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
+	var err error
 
+	log := log.WithFields(logrus.Fields{"context": "getting usages"})
+	response := pbinit.NewUsageList()
+	ctx, span := pbinit.InitGetUsages(request, subject)
+	defer span.End()
+
+	username := request.Username
+	if username == "" {
+		response.Error = gotelnats.InitServiceError(
+			ctx, err, &gotelnats.ErrorOptions{
+				ErrorCode: svcerror.ErrorCode_BAD_REQUEST,
+			},
+		)
+	}
+
+	log = log.WithFields(logrus.Fields{"user": username})
+
+	userPlan, err := s.userUsages(ctx, username)
+	if err != nil {
+		log.Error(err)
+		response.Error = gotelnats.InitServiceError(
+			ctx, err, &gotelnats.ErrorOptions{
+				ErrorCode: natsStatusCode(err),
+			},
+		)
+	}
+
+	for _, usage := range userPlan.Usages {
+		response.Usages = append(response.Usages, &qms.Usage{
+			Uuid:       *usage.ID,
+			Usage:      float32(usage.Usage), //TODO: make sure the usage value is a float64
+			UserPlanId: *usage.UserPlanID,
+			ResourceType: &qms.ResourceType{
+				Uuid: *usage.ResourceType.ID,
+				Name: usage.ResourceType.Name,
+				Unit: usage.ResourceType.Unit,
+			},
+		})
+	}
+
+	log.Info("successfully found usages")
+
+	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
+		log.Error(err)
+	}
 }
