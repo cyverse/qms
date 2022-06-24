@@ -22,7 +22,7 @@ type Update struct {
 	ID                *string      `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 	ValueType         string       `json:"value_type"`
 	Value             float64      `gorm:"not null" json:"value"`
-	EffectiveDate     time.Time    `gorm:"json:effective_date" type:"date"`
+	EffectiveDate     time.Time    `gorm:"json:effective_date" type:"timestamp with time zone"`
 	UpdateOperationID *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceTypeID    *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceType      ResourceType `json:"resource_types"`
