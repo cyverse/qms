@@ -104,8 +104,8 @@ func Init(spec *config.Specification) {
 	// Register the handlers.
 	RegisterHandlers(s)
 
-	queueSub(conn, spec, "user-overages", s.GetUserOveragesNATS)
-	queueSub(conn, spec, "in-resource-overage", s.InOverageNATS)
+	queueSub(conn, spec, "user.overages.get", s.GetUserOveragesNATS)
+	queueSub(conn, spec, "user.overages.check", s.InOverageNATS)
 	queueSub(conn, spec, "user.usages.add", s.AddUsagesNATS)
 	queueSub(conn, spec, "user.usages.get", s.GetUsagesNATS)
 
