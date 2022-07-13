@@ -230,6 +230,9 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 	)
 
 	log := log.WithFields(logrus.Fields{"context": "adding usage information"})
+
+	log.Debugf("subject: %s; reply: %s", subject, reply)
+
 	response := pbinit.NewUsageResponse()
 	ctx, span := pbinit.InitAddUsage(request, subject)
 	defer span.End()
