@@ -260,8 +260,12 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 		response.Usage = &u
 	}
 
-	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
-		log.Error(err)
+	if reply != "" {
+		if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
+			log.Error(err)
+		}
+	} else {
+		log.Info("reply subject was empty, not sending response")
 	}
 
 }
