@@ -38,6 +38,7 @@ require (
 )
 
 require (
+	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/go-mod/cfg v0.0.1
 	github.com/cyverse-de/go-mod/gotelnats v0.0.10
 	github.com/cyverse-de/go-mod/logging v0.0.2
