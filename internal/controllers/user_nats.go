@@ -49,7 +49,7 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 	log.Debug("after calling db.GetUserOverages()")
 
 	for _, r := range results {
-		quota, err := parseFloat64(r["quota"].(string))
+		quota, err := parseFloat64(string(r["quota"].([]uint8)))
 		if err != nil {
 			responseList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
 				ErrorCode: svcerror.ErrorCode_INTERNAL,
@@ -57,7 +57,7 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 			break
 		}
 
-		usage, err := parseFloat64(r["usage"].(string))
+		usage, err := parseFloat64(string(r["usage"].([]uint8)))
 		if err != nil {
 			responseList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
 				ErrorCode: svcerror.ErrorCode_INTERNAL,
