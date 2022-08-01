@@ -65,8 +65,7 @@ spec:
         - name: qms
           image: harbor.cyverse.org/de/qms
           args:
-            - "--report-overages"
-            - "false"
+            - "--report-overages=false"
           env:
             - name: QMS_DATABASE_URI
               valueFrom:
