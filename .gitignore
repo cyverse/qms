@@ -30,3 +30,4 @@ swagger.json
 *.swp
 jobservices.yml
 jobservices.yaml
+dotenv
