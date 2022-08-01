@@ -112,6 +112,13 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
+	responseList := pbinit.NewOverageList()
+
+	// Skip the remaining logic because QMS is configured to not report overages.
+	if !s.ReportOverages {
+		return model.ProtobufJSON(ctx, responseList, http.StatusOK)
+	}
+
 	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "missing username", http.StatusBadRequest)
@@ -128,7 +135,6 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	}
 	log.Debug("after calling db.GetUserOverages()")
 
-	responseList := pbinit.NewOverageList()
 	for _, r := range results {
 		responseList.Overages = append(responseList.Overages, &qms.Overage{
 			ResourceName: r["resource_type_name"].(string),
@@ -146,6 +152,14 @@ func (s Server) InOverage(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "checking if a user's usage is an overage"})
 
 	context := ctx.Request().Context()
+
+	response := pbinit.NewIsOverage()
+
+	// Skip the rest of the logic because QMS is configured to not report overages
+	if !s.ReportOverages {
+		response.IsOverage = false
+		return model.ProtobufJSON(ctx, response, http.StatusOK)
+	}
 
 	username := ctx.Param("username")
 	if username == "" {
@@ -166,7 +180,6 @@ func (s Server) InOverage(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 
-	response := pbinit.NewIsOverage()
 	if results != nil {
 		response.IsOverage = results["overage"].(bool)
 	}
