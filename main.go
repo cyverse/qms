@@ -65,18 +65,19 @@ func main() {
 	var (
 		err error
 
-		configPath    = flag.String("config", cfg.DefaultConfigPath, "Path to the config file")
-		dotEnvPath    = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		tlsCert       = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
-		tlsKey        = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
-		caCert        = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
-		credsPath     = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
-		maxReconnects = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
-		reconnectWait = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
-		natsSubject   = flag.String("subject", "cyverse.qms.>", "NATS subject to subscribe to")
-		natsQueue     = flag.String("queue", "cyverse.qms", "Name of the NATS queue to use")
-		envPrefix     = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
-		logLevel      = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
+		configPath     = flag.String("config", cfg.DefaultConfigPath, "Path to the config file")
+		dotEnvPath     = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		tlsCert        = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
+		tlsKey         = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
+		caCert         = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
+		credsPath      = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
+		maxReconnects  = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
+		reconnectWait  = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
+		natsSubject    = flag.String("subject", "cyverse.qms.>", "NATS subject to subscribe to")
+		natsQueue      = flag.String("queue", "cyverse.qms", "Name of the NATS queue to use")
+		envPrefix      = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
+		reportOverages = flag.Bool("report-overages", true, "Allows the overages feature to effectively be shut down")
+		logLevel       = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
 
 	flag.Parse()
@@ -111,6 +112,7 @@ func main() {
 	spec.BaseSubject = *natsSubject
 	spec.MaxReconnects = *maxReconnects
 	spec.ReconnectWait = *reconnectWait
+	spec.ReportOverages = *reportOverages
 
 	log.Infof("NATS URLs are %s", spec.NatsCluster)
 	log.Infof("NATS TLS cert file is %s", *tlsCert)

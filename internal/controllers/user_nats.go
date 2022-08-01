@@ -35,6 +35,14 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 	ctx, span := pbinit.InitAllUserOveragesRequest(request, subject)
 	defer span.End()
 
+	// If s.ReportOverages is false, then return the empty list of overages that was just created.
+	if !s.ReportOverages {
+		if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, responseList); err != nil {
+			log.Error(err)
+		}
+		return
+	}
+
 	username := request.Username
 
 	results, err := db.GetUserOverages(ctx, s.GORMDB, username)
@@ -80,11 +88,24 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 // InOverageNATS is the NATS handler for checking if a user is in overage
 // for a particular resource type.
 func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageRequest) {
+	var err error
+
 	log := log.WithFields(logrus.Fields{"context": "check if in overage"})
 
 	response := pbinit.NewIsOverage()
 	ctx, span := pbinit.InitIsOverageRequest(request, subject)
 	defer span.End()
+
+	// Always return false if s.ReportOverages is false.
+	if !s.ReportOverages {
+		response.IsOverage = false
+
+		if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
+			log.Error(err)
+		}
+
+		return
+	}
 
 	results, err := db.IsOverage(ctx, s.GORMDB, request.GetUsername(), request.GetResourceName())
 	if err != nil {

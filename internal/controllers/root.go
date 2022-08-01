@@ -16,13 +16,14 @@ var log = logging.GetLogger().WithFields(logrus.Fields{"package": "controllers"}
 
 // Server defines the REST API of the QMS
 type Server struct {
-	Router   *echo.Echo
-	DB       *sql.DB
-	GORMDB   *gorm.DB
-	Service  string
-	Title    string
-	Version  string
-	NATSConn *nats.EncodedConn
+	Router         *echo.Echo
+	DB             *sql.DB
+	GORMDB         *gorm.DB
+	Service        string
+	Title          string
+	Version        string
+	NATSConn       *nats.EncodedConn
+	ReportOverages bool
 }
 
 // ServerInfo returns basic information about the server.

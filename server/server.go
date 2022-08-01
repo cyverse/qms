@@ -92,13 +92,14 @@ func Init(spec *config.Specification) {
 	conn := InitNATS(spec)
 
 	s := controllers.Server{
-		Router:   e,
-		DB:       db,
-		GORMDB:   gormdb,
-		Service:  "qms",
-		Title:    "serviceInfo.Title",   //TODO: correct this
-		Version:  "serviceInfo.Version", //TODO:correct this
-		NATSConn: conn,
+		Router:         e,
+		DB:             db,
+		GORMDB:         gormdb,
+		Service:        "qms",
+		Title:          "serviceInfo.Title",   //TODO: correct this
+		Version:        "serviceInfo.Version", //TODO:correct this
+		NATSConn:       conn,
+		ReportOverages: spec.ReportOverages,
 	}
 
 	// Register the handlers.

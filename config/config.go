@@ -10,20 +10,21 @@ var ServiceName = "QMS"
 
 // Specification defines the configuration settings for the QMS service.
 type Specification struct {
-	DatabaseURI   string
-	ReinitDB      bool
-	NatsCluster   string
-	DotEnvPath    string
-	ConfigPath    string
-	EnvPrefix     string
-	MaxReconnects int
-	ReconnectWait int
-	CACertPath    string
-	TLSKeyPath    string
-	TLSCertPath   string
-	CredsPath     string
-	BaseSubject   string
-	BaseQueueName string
+	DatabaseURI    string
+	ReinitDB       bool
+	NatsCluster    string
+	DotEnvPath     string
+	ConfigPath     string
+	EnvPrefix      string
+	MaxReconnects  int
+	ReconnectWait  int
+	CACertPath     string
+	TLSKeyPath     string
+	TLSCertPath    string
+	CredsPath      string
+	BaseSubject    string
+	BaseQueueName  string
+	ReportOverages bool
 }
 
 // LoadConfig loads the configuration for the QMS service.
