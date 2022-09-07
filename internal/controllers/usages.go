@@ -309,6 +309,28 @@ func (s Server) userUsages(ctx context.Context, username string) (*model.UserPla
 	return &userPlan, nil
 }
 
+func (s Server) userUpdates(ctx context.Context, username string) ([]model.Update, error) {
+	var (
+		err  error
+		user model.User
+	)
+	err = s.GORMDB.WithContext(ctx).Where("username=?", username).Find(&user).Error
+	if err != nil {
+		return nil, errors.New("user name not found")
+	}
+	updates := make([]model.Update, 0)
+	err = s.GORMDB.WithContext(ctx).
+		Preload("Updates").
+		Preload("Updates.ResourceType").
+		Preload("Updates.User").
+		Where("users.username = ?", username).
+		Find(&updates).Error
+	if err != nil {
+		return nil, err
+	}
+	return updates, nil
+}
+
 func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	var err error
 
@@ -333,6 +355,31 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 	log.Info("successfully found usages")
 
 	return model.Success(ctx, userPlan.Usages, http.StatusOK)
+}
+
+func (s Server) GetAllUsageUpdatesForUser(ctx echo.Context) error {
+	var err error
+
+	log := log.WithFields(logrus.Fields{"context": "get all user updates"})
+
+	context := ctx.Request().Context()
+
+	username := ctx.Param("username")
+	if username == "" {
+		return model.Error(ctx, "invalid username", http.StatusBadRequest)
+	}
+
+	log.WithFields(logrus.Fields{"user": username})
+
+	updates, err := s.userUpdates(context, username)
+	if err != nil {
+		sCode := httpStatusCode(err)
+		log.Error(err)
+		return model.Error(ctx, err.Error(), sCode)
+	}
+
+	log.Info("successfully found updates")
+	return model.Success(ctx, updates, http.StatusOK)
 }
 
 func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
