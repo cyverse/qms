@@ -28,3 +28,18 @@ func GetUser(ctx context.Context, db *gorm.DB, username string) (*model.User, er
 
 	return &user, nil
 }
+
+// UserExists determines whether or not the user exists in the database.
+func UserExists(ctx context.Context, db *gorm.DB, username string) (bool, error) {
+	wrapMsg := "unable to determine whether user exists"
+	var err error
+
+	var user model.User
+	err = db.WithContext(ctx).Debug().Where("username = ?", username).First(&user).Error
+	if err == gorm.ErrRecordNotFound {
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, wrapMsg)
+	}
+	return true, nil
+}

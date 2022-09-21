@@ -26,5 +26,6 @@ type Update struct {
 	UpdateOperationID *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceTypeID    *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceType      ResourceType `json:"resource_types"`
+	UserID            *string      `gorm:"type:uuid" json:"-"`
 	User              User         `json:"user"`
 }

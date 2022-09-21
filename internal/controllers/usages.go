@@ -310,19 +310,14 @@ func (s Server) userUsages(ctx context.Context, username string) (*model.UserPla
 }
 
 func (s Server) userUpdates(ctx context.Context, username string) ([]model.Update, error) {
-	var (
-		err  error
-		user model.User
-	)
-	err = s.GORMDB.WithContext(ctx).Where("username=?", username).Find(&user).Error
-	if err != nil {
-		return nil, errors.New("user name not found")
-	}
+	var err error
+
 	updates := make([]model.Update, 0)
-	err = s.GORMDB.WithContext(ctx).
-		Preload("Updates").
-		Preload("Updates.ResourceType").
-		Preload("Updates.User").
+	err = s.GORMDB.WithContext(ctx).Debug().
+		Table("updates").
+		Joins("JOIN users ON updates.user_id = users.id").
+		Preload("ResourceType").
+		Preload("User").
 		Where("users.username = ?", username).
 		Find(&updates).Error
 	if err != nil {
@@ -362,15 +357,18 @@ func (s Server) GetAllUsageUpdatesForUser(ctx echo.Context) error {
 
 	log := log.WithFields(logrus.Fields{"context": "get all user updates"})
 
-	context := ctx.Request().Context()
-
 	username := ctx.Param("username")
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
-
 	log.WithFields(logrus.Fields{"user": username})
 
+	err = s.ValidateUser(ctx, username)
+	if err != nil {
+		return nil
+	}
+
+	context := ctx.Request().Context()
 	updates, err := s.userUpdates(context, username)
 	if err != nil {
 		sCode := httpStatusCode(err)
