@@ -15,12 +15,18 @@ import (
 func (s Server) ValidateUser(ctx echo.Context, username string) error {
 	exists, err := db.UserExists(ctx.Request().Context(), s.GORMDB, username)
 	if err != nil {
-		model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		sendErr := model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		if sendErr != nil {
+			ctx.Logger().Errorf("unable to send response: %s", sendErr.Error())
+		}
 		return err
 	}
 	if !exists {
 		msg := fmt.Sprintf("user %s does not exist", username)
-		model.Error(ctx, msg, http.StatusNotFound)
+		sendErr := model.Error(ctx, msg, http.StatusNotFound)
+		if sendErr != nil {
+			ctx.Logger().Errorf("unable to send response: %s", sendErr.Error())
+		}
 		return errors.New(msg)
 	}
 	return nil
