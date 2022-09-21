@@ -98,6 +98,7 @@ func RegisterHandlers(s controllers.Server) {
 	usages := v1.Group("/usages")
 	usages.GET("/:username", s.GetAllUsageOfUser)
 	usages.POST("", s.AddUsages)
+	usages.GET("/:username/updates", s.GetAllUsageUpdatesForUser)
 
 	users := v1.Group("/users")
 	registerUserEndpoints(users, &s)
