@@ -10,6 +10,7 @@ import (
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/QMS/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -56,7 +57,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := ctx.Param("username")
+	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -119,7 +120,7 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 		return model.ProtobufJSON(ctx, responseList, http.StatusOK)
 	}
 
-	username := ctx.Param("username")
+	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
 	if username == "" {
 		return model.Error(ctx, "missing username", http.StatusBadRequest)
 	}
@@ -161,7 +162,7 @@ func (s Server) InOverage(ctx echo.Context) error {
 		return model.ProtobufJSON(ctx, response, http.StatusOK)
 	}
 
-	username := ctx.Param("username")
+	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
 	if username == "" {
 		return model.Error(ctx, "missing username", http.StatusBadRequest)
 	}
@@ -194,7 +195,7 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := ctx.Param("username")
+	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -242,7 +243,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 
 	log.Debugf("plan name from request is %s", planName)
 
-	username := ctx.Param("username")
+	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}

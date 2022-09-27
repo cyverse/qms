@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
+	"github.com/cyverse/QMS/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,7 +44,7 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 		return
 	}
 
-	username := request.Username
+	username := utils.RemoveUsernameSuffix(request.Username)
 
 	results, err := db.GetUserOverages(ctx, s.GORMDB, username)
 	if err != nil {
@@ -107,7 +108,8 @@ func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageReque
 		return
 	}
 
-	results, err := db.IsOverage(ctx, s.GORMDB, request.GetUsername(), request.GetResourceName())
+	username := utils.RemoveUsernameSuffix(request.GetUsername())
+	results, err := db.IsOverage(ctx, s.GORMDB, username, request.GetResourceName())
 	if err != nil {
 		response.Error = gotelnats.InitServiceError(
 			ctx, err, &gotelnats.ErrorOptions{
