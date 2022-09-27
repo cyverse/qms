@@ -72,11 +72,16 @@ spec:
                 secretKeyRef:
                   name: configs
                   key: QMS_DATABASE_URI
-            - name: QMS_REINIT_DB
+            - name: QMS_DATABASE_MIGRATE
               valueFrom:
                 secretKeyRef:
                   name: configs
-                  key: QMS_REINIT_DB
+                  key: QMS_DATABASE_MIGRATE
+            - name: QMS_DATABASE_REINIT
+              valueFrom:
+                secretKeyRef:
+                  name: configs
+                  key: QMS_DATABASE_REINIT
             - name: OTEL_TRACES_EXPORTER
               valueFrom:
                 secretKeyRef:

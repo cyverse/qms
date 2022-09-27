@@ -122,10 +122,12 @@ func main() {
 	log.Infof("NATS subject is %s", *natsSubject)
 	log.Infof("NATS queue is %s", *natsQueue)
 
-	// Run the schema migrations.
-	err = runSchemaMigrations(spec.DatabaseURI, spec.ReinitDB)
-	if err != nil {
-		log.Fatal(err.Error())
+	// Run the schema migrations if we're supposed to.
+	if spec.RunSchemaMigrations {
+		err = runSchemaMigrations(spec.DatabaseURI, spec.ReinitDB)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 	}
 
 	// Initialize the server.
