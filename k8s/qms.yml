@@ -82,6 +82,11 @@ spec:
                 secretKeyRef:
                   name: configs
                   key: QMS_DATABASE_REINIT
+            - name: QMS_USERNAME_SUFFIX
+              valueFrom:
+                secretKeyRef:
+                  name: configs
+                  key: USERNAME_SUFFIX
             - name: OTEL_TRACES_EXPORTER
               valueFrom:
                 secretKeyRef:

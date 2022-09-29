@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"gorm.io/gorm/clause"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
-	"github.com/cyverse/QMS/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -286,7 +286,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
 
-	username := utils.RemoveUsernameSuffix(quotaReq.Username)
+	username := strings.TrimSuffix(quotaReq.ResourceName, s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}

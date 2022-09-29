@@ -100,6 +100,7 @@ func Init(spec *config.Specification) {
 		Version:        "serviceInfo.Version", //TODO:correct this
 		NATSConn:       conn,
 		ReportOverages: spec.ReportOverages,
+		UsernameSuffix: spec.UsernameSuffix,
 	}
 
 	// Register the handlers.

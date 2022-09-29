@@ -26,6 +26,7 @@ type Specification struct {
 	BaseSubject         string
 	BaseQueueName       string
 	ReportOverages      bool
+	UsernameSuffix      string
 }
 
 // LoadConfig loads the configuration for the QMS service.
@@ -54,6 +55,11 @@ func LoadConfig(envPrefix, configPath, dotEnvPath string) (*Specification, error
 	s.NatsCluster = k.String("nats.cluster")
 	if s.NatsCluster == "" {
 		return nil, errors.New("nats.cluster must be set in the configuration file")
+	}
+
+	s.UsernameSuffix = k.String("username.suffix")
+	if s.UsernameSuffix == "" {
+		return nil, errors.New("username.suffix or QMS_USERNAME_SUFFIX must be set")
 	}
 
 	return &s, err

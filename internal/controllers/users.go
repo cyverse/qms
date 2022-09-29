@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
-	"github.com/cyverse/QMS/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -57,7 +57,7 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -120,7 +120,7 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 		return model.ProtobufJSON(ctx, responseList, http.StatusOK)
 	}
 
-	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "missing username", http.StatusBadRequest)
 	}
@@ -162,7 +162,7 @@ func (s Server) InOverage(ctx echo.Context) error {
 		return model.ProtobufJSON(ctx, response, http.StatusOK)
 	}
 
-	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "missing username", http.StatusBadRequest)
 	}
@@ -195,7 +195,7 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -243,7 +243,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 
 	log.Debugf("plan name from request is %s", planName)
 
-	username := utils.RemoveUsernameSuffix(ctx.Param("username"))
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
