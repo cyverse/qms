@@ -38,7 +38,7 @@ func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, pla
 		PlanID:             plan.ID,
 		Quotas:             QuotasFromPlan(plan),
 	}
-	err = db.WithContext(ctx).Debug().Create(&userPlan).Error
+	err = db.WithContext(ctx).Create(&userPlan).Error
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
