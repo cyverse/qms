@@ -57,8 +57,8 @@ func loadConfig() (*Config, error) {
 func listUsersWithSuffixes(ctx context.Context, tx *gorm.DB, usernameSuffix string) ([]model.User, error) {
 	var users []model.User
 	err := tx.WithContext(ctx).
-		Find(&users, "username like ?", fmt.Sprintf("%%%s", usernameSuffix)).
 		Order("username").
+		Find(&users, "username like ?", fmt.Sprintf("%%%s", usernameSuffix)).
 		Error
 	return users, err
 }
