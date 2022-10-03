@@ -56,14 +56,17 @@ func loadConfig() (*Config, error) {
 // listUsersWithSuffixes lists the users in the database whose usernames contain the username suffix.
 func listUsersWithSuffixes(ctx context.Context, tx *gorm.DB, usernameSuffix string) ([]model.User, error) {
 	var users []model.User
-	err := tx.WithContext(ctx).Find(&users, "username like ?", fmt.Sprintf("%%%s", usernameSuffix)).Error
+	err := tx.WithContext(ctx).
+		Find(&users, "username like ?", fmt.Sprintf("%%%s", usernameSuffix)).
+		Order("username").
+		Error
 	return users, err
 }
 
 // loadCurrentSubscription loads the current subscription for a single user. It does not create a new subscription if
 // the user doesn't currently have one.
 func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User) (*model.UserPlan, error) {
-	var subscription []model.UserPlan
+	var subscriptions []model.UserPlan
 
 	// Look up the plan.
 	err := tx.WithContext(ctx).
@@ -82,19 +85,34 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 		).
 		Order("user_plans.effective_start_date desc").
 		Limit(1).
-		Find(&subscription).
+		Find(&subscriptions).
 		Error
 
 	var plan *model.UserPlan
-	if len(subscription) > 0 {
-		plan = &subscription[0]
+	if len(subscriptions) > 0 {
+		plan = &subscriptions[0]
 	}
 	return plan, err
 }
 
 // LoadSubscription loads the subscription details for the given subscription ID.
-func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID) (*model.UserPlan, error) {
+func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID string) (*model.UserPlan, error) {
 	var subscription *model.UserPlan
+
+	err := tx.WithContext(ctx).
+		Preload("User").
+		Preload("Plan").
+		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Quotas").
+		Preload("Quotas.ResourceType").
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Where("id = ?", subscriptionID).
+		First(&subscription).
+		Error
+
+	return subscription, err
 }
 
 // loadMostRecentDataUsage loads lastest data usage record for a user using both the username with and without the
@@ -139,7 +157,7 @@ func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *
 		ResourceTypeID: resourceTypeID,
 		Quota:          quotaValue,
 	}
-	err := tx.WithContext(ctx).Debug().
+	err := tx.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{
@@ -176,7 +194,7 @@ func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, ne
 func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.UserPlan, usage *model.Usage) error {
 	newUsage := &model.Usage{
 		ResourceTypeID: usage.ResourceTypeID,
-		UserPlanID:     usage.UserPlanID,
+		UserPlanID:     subscription.ID,
 		Usage:          usage.Usage,
 	}
 	return tx.WithContext(ctx).Create(newUsage).Error
@@ -184,7 +202,7 @@ func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *mode
 
 // fixUsername fixes a username for a single user.
 func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, usernameSuffix string) error {
-	fmt.Printf("fixing the subscriptions for %s\n", oldUser.Username)
+	fmt.Printf("fixing the subscriptions for %s...\n", oldUser.Username)
 
 	// Get the information for the correct username.
 	newUsername := strings.TrimSuffix(oldUser.Username, usernameSuffix)
@@ -236,7 +254,7 @@ func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, username
 	}
 
 	// Get all of the details for the new subscription.
-	newSubscription, err = loadSubscription(ctx, tx, newSubscription.ID)
+	newSubscription, err = loadSubscription(ctx, tx, *newSubscription.ID)
 	if err != nil {
 		return errors.Wrapf(err, "unable to load the new subscription details for %s", newUser.Username)
 	}
@@ -285,13 +303,10 @@ func main() {
 		}
 
 		// Just list the usernames for now.
-		for i, user := range usersToFix {
+		for _, user := range usersToFix {
 			err = fixUsername(ctx, tx, &user, cfg.UsernameSuffix)
 			if err != nil {
 				return errors.Wrapf(err, "unable to fix the username for %s", user.Username)
-			}
-			if i > 5 {
-				break
 			}
 		}
 		return nil
