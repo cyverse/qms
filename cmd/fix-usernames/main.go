@@ -211,7 +211,9 @@ func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, username
 		return errors.Wrapf(err, "unable to get the user details for %s", newUsername)
 	}
 
-	// Load the currently oldSubscription for the user.
+	// Load the current subscription for the username without the suffix. This will serve as the source for the user's
+	// new subscription. We use the username without the suffix for this because subscription purchases never used the
+	// username suffix.
 	oldSubscription, err := loadCurrentSubscription(ctx, tx, newUser)
 	if err != nil {
 		return errors.Wrapf(err, "unable to load the current plan for %s", newUser.Username)
