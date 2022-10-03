@@ -222,7 +222,7 @@ func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, username
 	if err != nil {
 		return errors.Wrapf(
 			err,
-			"unable to load the most recent data usage for %s and ",
+			"unable to load the most recent data usage for %s and %s",
 			oldUser.Username,
 			newUser.Username,
 		)
