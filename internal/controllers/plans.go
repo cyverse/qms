@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"gorm.io/gorm/clause"
 
@@ -285,7 +286,8 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
 
-	if quotaReq.Username == "" {
+	username := strings.TrimSuffix(quotaReq.ResourceName, s.UsernameSuffix)
+	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
 	if quotaReq.ResourceName == "" {
@@ -296,7 +298,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	}
 
 	log = log.WithFields(logrus.Fields{
-		"user":     quotaReq.Username,
+		"user":     username,
 		"resource": quotaReq.ResourceName,
 		"value":    quotaReq.QuotaValue,
 	})
@@ -312,7 +314,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 
 	log.Debug("got resource info from the database")
 
-	user, err := db.GetUser(context, s.GORMDB, quotaReq.Username)
+	user, err := db.GetUser(context, s.GORMDB, username)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cyverse-de/go-mod/gotelnats"
@@ -69,7 +70,8 @@ func natsStatusCode(err error) svcerror.ErrorCode {
 }
 
 func (s Server) addUsage(ctx context.Context, usage *Usage) error {
-	if usage.Username == "" {
+	username := strings.TrimSuffix(usage.Username, s.UsernameSuffix)
+	if username == "" {
 		return ErrInvalidUsername
 	}
 
@@ -88,7 +90,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 	log.Debug("validated usage information")
 
 	log = log.WithFields(logrus.Fields{
-		"user":       usage.Username,
+		"user":       username,
 		"resource":   usage.ResourceName,
 		"updateType": usage.UpdateType,
 		"value":      usage.UsageValue,
@@ -96,7 +98,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlan(ctx, tx, usage.Username)
+		userPlan, err := db.GetActiveUserPlan(ctx, tx, username)
 		if err != nil {
 			return err
 		}
@@ -218,7 +220,8 @@ func (s Server) AddUsages(ctx echo.Context) error {
 	}
 
 	log.Debugf("added usage inforamtion %+v", usage)
-	successMsg := fmt.Sprintf("successfully updated the usage for: %s", usage.Username)
+	username := strings.TrimSuffix(usage.Username, s.UsernameSuffix)
+	successMsg := fmt.Sprintf("successfully updated the usage for: %s", username)
 
 	return model.SuccessMessage(ctx, successMsg, http.StatusOK)
 }
@@ -237,8 +240,9 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 	ctx, span := pbinit.InitAddUsage(request, subject)
 	defer span.End()
 
+	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
 	usage = Usage{
-		Username:     request.Username,
+		Username:     username,
 		ResourceName: request.ResourceName,
 		UsageValue:   request.UsageValue,
 		UpdateType:   request.UpdateType,
@@ -333,7 +337,7 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	username := ctx.Param("username")
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -357,7 +361,7 @@ func (s Server) GetAllUsageUpdatesForUser(ctx echo.Context) error {
 
 	log := log.WithFields(logrus.Fields{"context": "get all user updates"})
 
-	username := ctx.Param("username")
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
@@ -388,7 +392,7 @@ func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
 	ctx, span := pbinit.InitGetUsages(request, subject)
 	defer span.End()
 
-	username := request.Username
+	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
 	if username == "" {
 		response.Error = gotelnats.InitServiceError(
 			ctx, err, &gotelnats.ErrorOptions{

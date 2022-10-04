@@ -24,6 +24,7 @@ type Server struct {
 	Version        string
 	NATSConn       *nats.EncodedConn
 	ReportOverages bool
+	UsernameSuffix string
 }
 
 // ServerInfo returns basic information about the server.

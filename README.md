@@ -56,11 +56,16 @@ connection settings. In most cases, the URI will look something like this:
 postgresql://dbuser@dbhost.example.org:5432/dbname?sslmode=disable
 ```
 
-### QMS_REINIT_DB (Optional, Default: `false`)
+### QMS_DATABASE_MIGRATE (Optional, Default: `false`)
+
+If this environment variable is defined and set to `true` then QMS will automatically run database schema migrations
+on startup.
+
+### QMS_DATABASE_REINIT (Optional, Default: `false`)
 
 If this environment variable is defined and set to `true` then the QMS will reinitialize the database upon startup.
 This feature is intended to be used only during development testing, when the schema migrations are being actively
-updated.
+updated. Note: this parameter is only applicable if `QMS_DATABASE_MIGRATE` is also enabled.
 
 ## Database Schema Migraions
 

@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"strings"
+
 	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
@@ -43,7 +45,7 @@ func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserO
 		return
 	}
 
-	username := request.Username
+	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
 
 	results, err := db.GetUserOverages(ctx, s.GORMDB, username)
 	if err != nil {
@@ -107,7 +109,8 @@ func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageReque
 		return
 	}
 
-	results, err := db.IsOverage(ctx, s.GORMDB, request.GetUsername(), request.GetResourceName())
+	username := strings.TrimSuffix(request.GetUsername(), s.UsernameSuffix)
+	results, err := db.IsOverage(ctx, s.GORMDB, username, request.GetResourceName())
 	if err != nil {
 		response.Error = gotelnats.InitServiceError(
 			ctx, err, &gotelnats.ErrorOptions{
