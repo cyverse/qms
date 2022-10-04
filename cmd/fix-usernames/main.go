@@ -53,14 +53,16 @@ func loadConfig() (*Config, error) {
 	return &Config{DatabaseURI: databaseURI, UsernameSuffix: usernameSuffix}, nil
 }
 
-// listUsersWithSuffixes lists the users in the database whose usernames contain the username suffix.
-func listUsersWithSuffixes(ctx context.Context, tx *gorm.DB, usernameSuffix string) ([]model.User, error) {
-	var users []model.User
+// listUsernames lists all distinct usernames in the system, excluding the suffix if it's present.
+func listUsernames(ctx context.Context, tx *gorm.DB) ([]string, error) {
+	var usernames []string
 	err := tx.WithContext(ctx).
+		Table("users").
+		Distinct("regexp_replace(users.username, '@.*', '') as username").
 		Order("username").
-		Find(&users, "username like ?", fmt.Sprintf("%%%s", usernameSuffix)).
+		Find(&usernames).
 		Error
-	return users, err
+	return usernames, err
 }
 
 // loadCurrentSubscription loads the current subscription for a single user. It does not create a new subscription if
@@ -200,12 +202,39 @@ func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *mode
 	return tx.WithContext(ctx).Create(newUsage).Error
 }
 
-// fixUsername fixes a username for a single user.
-func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, usernameSuffix string) error {
-	fmt.Printf("fixing the subscriptions for %s...\n", oldUser.Username)
+// loadUser loads user information from the database, without creating a new record for the user if one doesn't exist
+// already.
+func loadUser(ctx context.Context, tx *gorm.DB, username string) (*model.User, error) {
+	var users []model.User
 
-	// Get the information for the correct username.
-	newUsername := strings.TrimSuffix(oldUser.Username, usernameSuffix)
+	// Look up the user.
+	err := tx.WithContext(ctx).
+		Where("username = ?", username).
+		Limit(1).
+		Find(&users).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	if len(users) == 0 {
+		return nil, nil
+	}
+	return &users[0], nil
+}
+
+// fixUsername fixes a username for a single user.
+func fixUsername(ctx context.Context, tx *gorm.DB, newUsername string, usernameSuffix string) error {
+	fmt.Printf("fixing the subscriptions for %s...\n", newUsername)
+
+	// Get the information for the incorrect username.
+	oldUsername := fmt.Sprintf("%s%s", newUsername, usernameSuffix)
+	oldUser, err := loadUser(ctx, tx, oldUsername)
+	if err != nil {
+		return errors.Wrapf(err, "unable get the user details for %s", oldUsername)
+	}
+
+	// Get the information for the correct username. This user record will be created if it doesn't exist already.
 	newUser, err := db.GetUser(ctx, tx, newUsername)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get the user details for %s", newUsername)
@@ -220,27 +249,29 @@ func fixUsername(ctx context.Context, tx *gorm.DB, oldUser *model.User, username
 	}
 
 	// Load the most recent data usage record for the user.
-	usage, err := loadMostRecentDataUsage(ctx, tx, oldUser.Username, newUser.Username)
+	usage, err := loadMostRecentDataUsage(ctx, tx, oldUsername, newUsername)
 	if err != nil {
 		return errors.Wrapf(
 			err,
 			"unable to load the most recent data usage for %s and %s",
-			oldUser.Username,
-			newUser.Username,
+			oldUsername,
+			newUsername,
 		)
 	}
 
 	// Deactivate all plans for both the old username and the new username.
-	err = db.DeactivateUserPlans(ctx, tx, *oldUser.ID)
-	if err != nil {
-		return errors.Wrapf(err, "unable to deactivate existing plans for %s", oldUser.Username)
+	if oldUser != nil {
+		err = db.DeactivateUserPlans(ctx, tx, *oldUser.ID)
+		if err != nil {
+			return errors.Wrapf(err, "unable to deactivate existing plans for %s", oldUser.Username)
+		}
 	}
 	err = db.DeactivateUserPlans(ctx, tx, *newUser.ID)
 	if err != nil {
 		return errors.Wrapf(err, "unable to deactivate existing plans for %s", newUser.Username)
 	}
 
-	// Subscribe the new user to the default plan if they didn't have a current subscription.
+	// Create the new subscription.
 	var newSubscription *model.UserPlan
 	if oldSubscription == nil {
 		newSubscription, err = db.SubscribeUserToDefaultPlan(ctx, tx, newUser.Username)
@@ -299,18 +330,19 @@ func main() {
 		ctx := context.Background()
 
 		// Get the list of usernames with suffixes.
-		usersToFix, err := listUsersWithSuffixes(ctx, tx, cfg.UsernameSuffix)
+		usernames, err := listUsernames(ctx, tx)
 		if err != nil {
 			return errors.Wrap(err, "unable to list usernames with suffixes")
 		}
 
-		// Just list the usernames for now.
-		for _, user := range usersToFix {
-			err = fixUsername(ctx, tx, &user, cfg.UsernameSuffix)
+		// Fix the usernames.
+		for _, username := range usernames {
+			err = fixUsername(ctx, tx, username, cfg.UsernameSuffix)
 			if err != nil {
-				return errors.Wrapf(err, "unable to fix the username for %s", user.Username)
+				return errors.Wrapf(err, "unable to fix the username for %s", username)
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
