@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -246,6 +247,13 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 		ResourceName: request.ResourceName,
 		UsageValue:   request.UsageValue,
 		UpdateType:   request.UpdateType,
+	}
+
+	jsonUsage, err := json.Marshal(usage)
+	if err != nil {
+		log.Errorf("unable to JSON encode the usage update for %s: %s", username, err.Error())
+	} else {
+		log.Debugf("received a usage update: %s", jsonUsage)
 	}
 
 	if err = s.addUsage(ctx, &usage); err != nil {
