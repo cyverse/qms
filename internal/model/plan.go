@@ -70,7 +70,7 @@ type UserPlan struct {
 func (up *UserPlan) GetCurrentUsageValue(resourceTypeID string) float64 {
 	var usageValue float64
 	for _, usage := range up.Usages {
-		if usage.ResourceTypeID == &resourceTypeID {
+		if *usage.ResourceTypeID == resourceTypeID {
 			usageValue = usage.Usage
 		}
 	}
