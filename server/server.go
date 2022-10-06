@@ -108,8 +108,15 @@ func Init(spec *config.Specification) {
 
 	queueSub(conn, spec, "user.overages.get", s.GetUserOveragesNATS)
 	queueSub(conn, spec, "user.overages.check", s.InOverageNATS)
+
+	// Only use this endpoint if you need to modify a usage directly, bypassing
+	// the updates table.
 	queueSub(conn, spec, "user.usages.add", s.AddUsagesNATS)
+
+	// This should be safe to use to get the current usages.
 	queueSub(conn, spec, "user.usages.get", s.GetUsagesNATS)
+
+	queueSub(conn, spec, "user.updates.get", s.GetAllUpdatesForUser)
 
 	log.Info("starting the service")
 	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))
