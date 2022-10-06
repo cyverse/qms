@@ -129,6 +129,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 		// Determine the new usage value.
 		var newUsageValue float64
 		currentUsageValue := userPlan.GetCurrentUsageValue(*resourceType.ID)
+		log.Debugf("the current usage value is %f", currentUsageValue)
 		switch usage.UpdateType {
 		case UpdateTypeSet:
 			newUsageValue = usage.UsageValue
