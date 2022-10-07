@@ -22,8 +22,10 @@ func (s Server) userUpdates(ctx context.Context, username string) ([]model.Updat
 	err = s.GORMDB.WithContext(ctx).Debug().
 		Table("updates").
 		Joins("JOIN users ON updates.user_id = users.id").
+		Joins("JOIN update_operations ON updates.update_operation_id = update_operations.id").
 		Preload("ResourceType").
 		Preload("User").
+		Preload("UpdateOperation").
 		Where("users.username = ?", username).
 		Find(&updates).Error
 	if err != nil {
@@ -119,7 +121,8 @@ func (s Server) GetAllUpdatesForUser(subject, reply string, request *qms.UpdateL
 				Unit: mu.ResourceType.Unit,
 			},
 			Operation: &qms.UpdateOperation{
-				Uuid: *mu.UpdateOperationID,
+				Uuid: *mu.UpdateOperation.ID,
+				Name: mu.UpdateOperation.Name,
 			},
 			User: &qms.QMSUser{
 				Uuid:     *mu.User.ID,
