@@ -109,6 +109,7 @@ func (s Server) GetAllUpdatesForUser(subject, reply string, request *qms.UpdateL
 	}
 	for _, mu := range mUpdates {
 		response.Updates = append(response.Updates, &qms.Update{
+			Uuid:          *mu.ID,
 			EffectiveDate: timestamppb.New(mu.EffectiveDate),
 			ValueType:     mu.ValueType,
 			Value:         mu.Value,
