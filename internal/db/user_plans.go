@@ -125,8 +125,8 @@ func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*m
 // GetActiveUserPlanDetails retrieves the user plan information that is currently active for the user. The effective
 // start date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user
-// plans exist for the user then a new one for the basic plan is created. Unlike GetActiveUserPlan except that it also
-// loads all of the user plan details from the database.
+// plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveUserPlan except
+// that it also loads all of the user plan details from the database.
 func GetActiveUserPlanDetails(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
 	var err error
 
