@@ -40,11 +40,6 @@ func (s Server) GetAllUsers(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, model.SuccessResponse(data, http.StatusOK))
 }
 
-const (
-	ValueTypeQuotas = "quotas"
-	ValueTypeUsages = "usages"
-)
-
 type Result struct {
 	ID             *string
 	UserName       string
@@ -77,32 +72,14 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 		log.Debugf("found user %s in db", user.Username)
 
 		// Look up or create the user plan.
-		userPlan, err := db.GetActiveUserPlan(context, tx, user.Username)
+		userPlan, err := db.GetActiveUserPlanDetails(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-
-		log.Debugf("user plan is %s", userPlan.Plan.Name)
-
-		// Retrieve the user plan so that the associations will be loaded.
-		result := model.UserPlan{ID: userPlan.ID}
-		err = tx.
-			WithContext(context).
-			Preload("User").
-			Preload("Plan").
-			Preload("Quotas").
-			Preload("Quotas.ResourceType").
-			Preload("Usages").
-			Preload("Usages.ResourceType").
-			First(&result).Error
-		if err != nil {
-			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		}
-
-		log.Debugf("returning plan ID %s", *result.PlanID)
+		log.Debugf("user plan name is %s", userPlan.Plan.Name)
 
 		// Return the user plan.
-		return model.Success(ctx, result, http.StatusOK)
+		return model.Success(ctx, userPlan, http.StatusOK)
 	})
 }
 

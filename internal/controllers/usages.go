@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,9 +15,9 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type Usage struct {
@@ -99,7 +98,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlan(ctx, tx, username)
+		userPlan, err := db.GetActiveUserPlanDetails(ctx, tx, username)
 		if err != nil {
 			return err
 		}
@@ -114,15 +113,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 		if resourceType == nil {
 			return fmt.Errorf("resource type '%s' does not exist", usage.ResourceName)
 		}
-
 		log.Debug("found resource type in database")
-
-		// Initialize the new usage record.
-		var newUsage = model.Usage{
-			Usage:          usage.UsageValue,
-			UserPlanID:     userPlan.ID,
-			ResourceTypeID: resourceType.ID,
-		}
 
 		// Verify that the update operation for the given update type exists.
 		updateOperation := model.UpdateOperation{Name: usage.UpdateType}
@@ -133,64 +124,47 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 		if err != nil {
 			return err
 		}
-
 		log.Debug("verified update operation from database")
 
-		// Determine the current usage, which should be zero if the usage record doesn't exist.
-		currentUsage := model.Usage{
-			UserPlanID:     userPlan.ID,
-			ResourceTypeID: resourceType.ID,
-		}
-		err = tx.WithContext(ctx).Debug().First(&currentUsage).Error
-		if err != nil && err != gorm.ErrRecordNotFound {
-			return err
-		}
-
-		log.Debugf("got the current usage of %f", currentUsage.Usage)
-
-		// Update the new usage based on the values in the request body.
+		// Determine the new usage value.
+		var newUsageValue float64
+		currentUsageValue := userPlan.GetCurrentUsageValue(*resourceType.ID)
+		log.Debugf("the current usage value is %f", currentUsageValue)
 		switch usage.UpdateType {
 		case UpdateTypeSet:
-			newUsage.Usage = usage.UsageValue
+			newUsageValue = usage.UsageValue
 		case UpdateTypeAdd:
-			newUsage.Usage = currentUsage.Usage + usage.UsageValue
+			newUsageValue = currentUsageValue + usage.UsageValue
 		default:
 			return fmt.Errorf("invalid update type: %s", usage.UpdateType)
 		}
+		log.Debugf("calculated the new usage to be %f", newUsageValue)
 
-		log.Debugf("calculated the new usage to be %f", newUsage.Usage)
-
-		// Either add the new usage record or update the existing one.
-		err = tx.WithContext(ctx).Debug().Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{
-					Name: "user_plan_id",
-				},
-				{
-					Name: "resource_type_id",
-				},
-			},
-			UpdateAll: true,
-		}).Create(&newUsage).Error
-		if err != nil {
-			return err
+		// Update the usage.
+		newUsage := &model.Usage{
+			UserPlanID:     userPlan.ID,
+			ResourceTypeID: resourceType.ID,
+			Usage:          newUsageValue,
 		}
-
+		err = db.UpsertUsage(ctx, tx, newUsage)
+		if err != nil {
+			return errors.Wrap(err, "unable to update or insert the usage record")
+		}
 		log.Debug("added/updated the usage record in the database")
 
 		// Record the update in the database.
 		update := model.Update{
-			Value:             newUsage.Usage,
-			ValueType:         ValueTypeUsages,
-			ResourceTypeID:    resourceType.ID,
+			Value:             usage.UsageValue,
+			ValueType:         model.ValueTypeUsages,
 			EffectiveDate:     time.Now(),
 			UpdateOperationID: updateOperation.ID,
+			ResourceTypeID:    resourceType.ID,
+			UserID:            userPlan.UserID,
 		}
 		err = tx.WithContext(ctx).Debug().Create(&update).Error
 		if err != nil {
 			return err
 		}
-
 		log.Debug("recorded the update in the databse")
 
 		return nil
@@ -282,45 +256,6 @@ func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
 
 }
 
-func (s Server) userUsages(ctx context.Context, username string) (*model.UserPlan, error) {
-	var err error
-
-	log = log.WithFields(logrus.Fields{"user": username})
-	log.Debug("got user from request")
-
-	var user model.User
-	err = s.GORMDB.WithContext(ctx).Where("username=?", username).Find(&user).Error
-	if err != nil {
-		return nil, errors.New("user name not found")
-	}
-
-	log.Debug("got user from database")
-
-	activePlan, err := db.GetActiveUserPlan(ctx, s.GORMDB, username)
-	if err != nil {
-		return nil, err
-	}
-
-	log = log.WithFields(logrus.Fields{"activePlan": activePlan.Plan.Name})
-	log.Debug("got the active plan for the user from the database")
-
-	var userPlan model.UserPlan
-	err = s.GORMDB.WithContext(ctx).
-		Preload("Usages").
-		Preload("Usages.ResourceType").
-		Where("user_id=?", user.ID).
-		Where("plan_id=?", activePlan.PlanID).
-		Find(&userPlan).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debug("got the usages from the database")
-
-	return &userPlan, nil
-}
-
 func (s Server) userUpdates(ctx context.Context, username string) ([]model.Update, error) {
 	var err error
 
@@ -352,7 +287,7 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 
 	log = log.WithFields(logrus.Fields{"user": username})
 
-	userPlan, err := s.userUsages(context, username)
+	userPlan, err := db.GetActiveUserPlanDetails(context, s.GORMDB, username)
 	if err != nil {
 		sCode := httpStatusCode(err)
 		log.Error(err)
@@ -411,7 +346,7 @@ func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
 
 	log = log.WithFields(logrus.Fields{"user": username})
 
-	userPlan, err := s.userUsages(ctx, username)
+	userPlan, err := db.GetActiveUserPlanDetails(ctx, s.GORMDB, username)
 	if err != nil {
 		log.Error(err)
 		response.Error = gotelnats.InitServiceError(

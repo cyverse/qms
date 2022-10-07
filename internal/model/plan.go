@@ -64,3 +64,15 @@ type UserPlan struct {
 	Quotas             []Quota    `json:"quotas"`
 	Usages             []Usage    `json:"usages"`
 }
+
+// GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be
+// careful to ensure that all user plan details have been loaded before calling this function.
+func (up *UserPlan) GetCurrentUsageValue(resourceTypeID string) float64 {
+	var usageValue float64
+	for _, usage := range up.Usages {
+		if *usage.ResourceTypeID == resourceTypeID {
+			usageValue = usage.Usage
+		}
+	}
+	return usageValue
+}

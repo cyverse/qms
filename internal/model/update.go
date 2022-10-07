@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+// Value type constants.
+const (
+	ValueTypeQuotas = "quotas"
+	ValueTypeUsages = "usages"
+)
+
 // UpdateOperation defines the structure of an available update operation in the QMS database.
 //
 // swagger:model
