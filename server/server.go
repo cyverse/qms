@@ -51,13 +51,21 @@ func InitNATS(spec *config.Specification) *nats.EncodedConn {
 		nats.MaxReconnects(spec.MaxReconnects),
 		nats.ReconnectWait(time.Duration(spec.ReconnectWait)*time.Second),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			log.Errorf("disconnected from nats: %s", err.Error())
+			if err != nil {
+				log.Errorf("disconnected from nats: %s", err.Error())
+			} else {
+				log.Errorf("disconnected from nats")
+			}
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
 			log.Infof("reconnected to %s", nc.ConnectedUrl())
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Errorf("connection closed: %s", nc.LastError().Error())
+			if nc.LastError() != nil {
+				log.Errorf("nats connection closed: %s", nc.LastError().Error())
+			} else {
+				log.Errorf("nats connection closed")
+			}
 		}),
 	)
 	if err != nil {
