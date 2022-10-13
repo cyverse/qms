@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -263,6 +265,69 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	})
 }
 
+func (s Server) validateQuota(ctx echo.Context, quotaReq *QuotaReq) (string, error) {
+	username := strings.TrimSuffix(quotaReq.ResourceName, s.UsernameSuffix)
+	if username == "" {
+		return "", model.Error(ctx, "invalid username", http.StatusBadRequest)
+	}
+	if quotaReq.ResourceName == "" {
+		return username, model.Error(ctx, "invalid resource name", http.StatusBadRequest)
+	}
+	if quotaReq.QuotaValue < 0 {
+		return username, model.Error(ctx, "invalid Quota value", http.StatusBadRequest)
+	}
+	return username, nil
+}
+
+func (s Server) upsertQuota(ctx context.Context, quotaReq *QuotaReq, gdb *gorm.DB) error {
+	resource, err := db.GetResourceTypeByName(ctx, gdb, quotaReq.ResourceName)
+	if err != nil {
+		return err
+	}
+	if resource == nil {
+		return errors.New("resource not found for resource: " + quotaReq.ResourceName)
+	}
+
+	log.Debug("got resource info from the database")
+
+	user, err := db.GetUser(ctx, gdb, quotaReq.Username)
+	if err != nil {
+		return err
+	}
+
+	log.Debug("got user info from the database")
+
+	userPlan, err := db.GetActiveUserPlan(ctx, gdb, user.Username)
+	if err != nil {
+		return err
+	}
+
+	log.Debug("got the user plan from the database")
+
+	var quota = model.Quota{
+		UserPlanID:     userPlan.ID,
+		Quota:          quotaReq.QuotaValue,
+		ResourceTypeID: resource.ID,
+	}
+	err = gdb.WithContext(ctx).Debug().
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{
+					Name: "user_plan_id",
+				},
+				{
+					Name: "resource_type_id",
+				},
+			},
+			DoUpdates: clause.AssignmentColumns([]string{"quota"}),
+		}).
+		Create(&quota).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddQuota adds quota value for a particular resource type and user.
 //
 // swagger:route POST /users/quota users addQuota
@@ -286,16 +351,12 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
 
-	username := strings.TrimSuffix(quotaReq.ResourceName, s.UsernameSuffix)
-	if username == "" {
-		return model.Error(ctx, "invalid username", http.StatusBadRequest)
+	username, err := s.validateQuota(ctx, &quotaReq)
+	if err != nil {
+		return err
 	}
-	if quotaReq.ResourceName == "" {
-		return model.Error(ctx, "invalid resource name", http.StatusBadRequest)
-	}
-	if quotaReq.QuotaValue < 0 {
-		return model.Error(ctx, "invalid Quota value", http.StatusBadRequest)
-	}
+
+	quotaReq.Username = username
 
 	log = log.WithFields(logrus.Fields{
 		"user":     username,
@@ -304,49 +365,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 	})
 	log.Debugf("got quota info from the request")
 
-	resource, err := db.GetResourceTypeByName(context, s.GORMDB, quotaReq.ResourceName)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-	if resource == nil {
-		return model.Error(ctx, "resource not found for resource: "+quotaReq.ResourceName, http.StatusInternalServerError)
-	}
-
-	log.Debug("got resource info from the database")
-
-	user, err := db.GetUser(context, s.GORMDB, username)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	log.Debug("got user info from the database")
-
-	userPlan, err := db.GetActiveUserPlan(context, s.GORMDB, user.Username)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	log.Debug("got the user plan from the database")
-
-	var quota = model.Quota{
-		UserPlanID:     userPlan.ID,
-		Quota:          quotaReq.QuotaValue,
-		ResourceTypeID: resource.ID,
-	}
-	err = s.GORMDB.WithContext(context).Debug().
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{
-					Name: "user_plan_id",
-				},
-				{
-					Name: "resource_type_id",
-				},
-			},
-			DoUpdates: clause.AssignmentColumns([]string{"quota"}),
-		}).
-		Create(&quota).Error
-	if err != nil {
+	if err = s.upsertQuota(context, &quotaReq, s.GORMDB); err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 

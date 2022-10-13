@@ -18,6 +18,11 @@ type UpdateOperation struct {
 	Name string `gorm:"type:text;not null;unique" json:"name"`
 }
 
+var UpdateOperationNames = []string{"ADD", "SET"}
+
+const UsagesTrackedMetric = "usages"
+const QuotasTrackedMetric = "quotas"
+
 type Update struct {
 	ID                *string         `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 	ValueType         string          `json:"value_type"`

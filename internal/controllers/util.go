@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -30,4 +33,12 @@ func (s Server) ValidateUser(ctx echo.Context, username string) error {
 		return errors.New(msg)
 	}
 	return nil
+}
+
+func natsError(ctx context.Context, err error) *svcerror.ServiceError {
+	return gotelnats.InitServiceError(
+		ctx, err, &gotelnats.ErrorOptions{
+			ErrorCode: natsStatusCode(err),
+		},
+	)
 }

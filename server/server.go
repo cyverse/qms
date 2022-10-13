@@ -117,6 +117,7 @@ func Init(spec *config.Specification) {
 	queueSub(conn, spec, "user.usages.get", s.GetUsagesNATS)
 
 	queueSub(conn, spec, "user.updates.get", s.GetAllUpdatesForUser)
+	queueSub(conn, spec, "user.updates.add", s.AddUpdateForUser)
 
 	log.Info("starting the service")
 	log.Fatal(e.Start(fmt.Sprintf(":%d", 9000)))

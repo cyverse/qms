@@ -29,11 +29,16 @@ type Usage struct {
 }
 
 var (
-	ErrUserNotFound        = errors.New("user name not found")
-	ErrInvalidUsername     = errors.New("invalid username")
-	ErrInvalidResourceName = errors.New("invalid resource name")
-	ErrInvalidUsageValue   = errors.New("invalid usage value")
-	ErrInvalidUpdateType   = errors.New("invalid update type")
+	ErrUserNotFound         = errors.New("user name not found")
+	ErrInvalidUsername      = errors.New("invalid username")
+	ErrInvalidResourceName  = errors.New("invalid resource name")
+	ErrInvalidUsageValue    = errors.New("invalid usage value")
+	ErrInvalidUpdateType    = errors.New("invalid update type")
+	ErrInvalidResourceUnit  = errors.New("invalid resource unit")
+	ErrInvalidOperationName = errors.New("invalid operation name")
+	ErrInvalidValueType     = errors.New("invalid value type")
+	ErrInvalidValue         = errors.New("invalid value")
+	ErrInvalidEffectiveDate = errors.New("invalid effective date")
 )
 
 func httpStatusCode(err error) int {
@@ -47,6 +52,16 @@ func httpStatusCode(err error) int {
 	case ErrInvalidUsageValue:
 		return http.StatusBadRequest
 	case ErrInvalidUpdateType:
+		return http.StatusBadRequest
+	case ErrInvalidResourceUnit:
+		return http.StatusBadRequest
+	case ErrInvalidOperationName:
+		return http.StatusBadRequest
+	case ErrInvalidValueType:
+		return http.StatusBadRequest
+	case ErrInvalidValue:
+		return http.StatusBadRequest
+	case ErrInvalidEffectiveDate:
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -65,28 +80,147 @@ func natsStatusCode(err error) svcerror.ErrorCode {
 		return svcerror.ErrorCode_BAD_REQUEST
 	case ErrInvalidUpdateType:
 		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidResourceUnit:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidOperationName:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidValueType:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidValue:
+		return svcerror.ErrorCode_BAD_REQUEST
+	case ErrInvalidEffectiveDate:
+		return svcerror.ErrorCode_BAD_REQUEST
 	default:
 		return svcerror.ErrorCode_INTERNAL
 	}
 }
 
-func (s Server) addUsage(ctx context.Context, usage *Usage) error {
+func (s Server) validateUsage(usage *Usage) (string, error) {
 	username := strings.TrimSuffix(usage.Username, s.UsernameSuffix)
 	if username == "" {
-		return ErrInvalidUsername
+		return "", ErrInvalidUsername
 	}
 
 	if usage.ResourceName == "" {
-		return ErrInvalidResourceName
+		return username, ErrInvalidResourceName
 	}
 
 	if usage.UsageValue < 0 {
-		return ErrInvalidUsageValue
+		return username, ErrInvalidUsageValue
 	}
 
 	if usage.UpdateType == "" {
-		return ErrInvalidUpdateType
+		return username, ErrInvalidUpdateType
 	}
+	return username, nil
+}
+
+func (s Server) addUsagesNoTX(ctx context.Context, usage *Usage, gdb *gorm.DB) error {
+	// Look up the currently active user plan, adding a default plan if one doesn't exist already.
+	userPlan, err := db.GetActiveUserPlan(ctx, gdb, usage.Username)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("active plan is %s", userPlan.Plan.Name)
+
+	// Look up the resource type.
+	resourceType, err := db.GetResourceTypeByName(ctx, gdb, usage.ResourceName)
+	if err != nil {
+		return err
+	}
+	if resourceType == nil {
+		return fmt.Errorf("resource type '%s' does not exist", usage.ResourceName)
+	}
+
+	log.Debug("found resource type in database")
+
+	// Initialize the new usage record.
+	var newUsage = model.Usage{
+		Usage:          usage.UsageValue,
+		UserPlanID:     userPlan.ID,
+		ResourceTypeID: resourceType.ID,
+	}
+
+	// Verify that the update operation for the given update type exists.
+	updateOperation := model.UpdateOperation{Name: usage.UpdateType}
+	err = gdb.WithContext(ctx).Debug().First(&updateOperation).Error
+	if err == gorm.ErrRecordNotFound {
+		return errors.New("invalid update type")
+	}
+	if err != nil {
+		return err
+	}
+
+	log.Debug("verified update operation from database")
+
+	// Determine the current usage, which should be zero if the usage record doesn't exist.
+	currentUsage := model.Usage{
+		UserPlanID:     userPlan.ID,
+		ResourceTypeID: resourceType.ID,
+	}
+	err = gdb.WithContext(ctx).Debug().First(&currentUsage).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	log.Debugf("got the current usage of %f", currentUsage.Usage)
+
+	// Update the new usage based on the values in the request body.
+	switch usage.UpdateType {
+	case UpdateTypeSet:
+		newUsage.Usage = usage.UsageValue
+	case UpdateTypeAdd:
+		newUsage.Usage = currentUsage.Usage + usage.UsageValue
+	default:
+		return fmt.Errorf("invalid update type: %s", usage.UpdateType)
+	}
+
+	log.Debugf("calculated the new usage to be %f", newUsage.Usage)
+
+	// Either add the new usage record or update the existing one.
+	err = gdb.WithContext(ctx).Debug().Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{
+				Name: "user_plan_id",
+			},
+			{
+				Name: "resource_type_id",
+			},
+		},
+		UpdateAll: true,
+	}).Create(&newUsage).Error
+	if err != nil {
+		return err
+	}
+
+	log.Debug("added/updated the usage record in the database")
+
+	// Record the update in the database.
+	update := model.Update{
+		Value:             newUsage.Usage,
+		ValueType:         ValueTypeUsages,
+		ResourceTypeID:    resourceType.ID,
+		EffectiveDate:     time.Now(),
+		UpdateOperationID: updateOperation.ID,
+	}
+	err = gdb.WithContext(ctx).Debug().Create(&update).Error
+	if err != nil {
+		return err
+	}
+
+	log.Debug("recorded the update in the databse")
+
+	return nil
+}
+
+func (s Server) addUsage(ctx context.Context, usage *Usage) error {
+	username, err := s.validateUsage(usage)
+	if err != nil {
+		return err
+	}
+
+	usage.Username = username
 
 	log.Debug("validated usage information")
 
@@ -98,102 +232,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 	})
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
-		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlan(ctx, tx, username)
-		if err != nil {
-			return err
-		}
-
-		log.Debugf("active plan is %s", userPlan.Plan.Name)
-
-		// Look up the resource type.
-		resourceType, err := db.GetResourceTypeByName(ctx, tx, usage.ResourceName)
-		if err != nil {
-			return err
-		}
-		if resourceType == nil {
-			return fmt.Errorf("resource type '%s' does not exist", usage.ResourceName)
-		}
-
-		log.Debug("found resource type in database")
-
-		// Initialize the new usage record.
-		var newUsage = model.Usage{
-			Usage:          usage.UsageValue,
-			UserPlanID:     userPlan.ID,
-			ResourceTypeID: resourceType.ID,
-		}
-
-		// Verify that the update operation for the given update type exists.
-		updateOperation := model.UpdateOperation{Name: usage.UpdateType}
-		err = tx.WithContext(ctx).Debug().First(&updateOperation).Error
-		if err == gorm.ErrRecordNotFound {
-			return errors.New("invalid update type")
-		}
-		if err != nil {
-			return err
-		}
-
-		log.Debug("verified update operation from database")
-
-		// Determine the current usage, which should be zero if the usage record doesn't exist.
-		currentUsage := model.Usage{
-			UserPlanID:     userPlan.ID,
-			ResourceTypeID: resourceType.ID,
-		}
-		err = tx.WithContext(ctx).Debug().First(&currentUsage).Error
-		if err != nil && err != gorm.ErrRecordNotFound {
-			return err
-		}
-
-		log.Debugf("got the current usage of %f", currentUsage.Usage)
-
-		// Update the new usage based on the values in the request body.
-		switch usage.UpdateType {
-		case UpdateTypeSet:
-			newUsage.Usage = usage.UsageValue
-		case UpdateTypeAdd:
-			newUsage.Usage = currentUsage.Usage + usage.UsageValue
-		default:
-			return fmt.Errorf("invalid update type: %s", usage.UpdateType)
-		}
-
-		log.Debugf("calculated the new usage to be %f", newUsage.Usage)
-
-		// Either add the new usage record or update the existing one.
-		err = tx.WithContext(ctx).Debug().Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{
-					Name: "user_plan_id",
-				},
-				{
-					Name: "resource_type_id",
-				},
-			},
-			UpdateAll: true,
-		}).Create(&newUsage).Error
-		if err != nil {
-			return err
-		}
-
-		log.Debug("added/updated the usage record in the database")
-
-		// Record the update in the database.
-		update := model.Update{
-			Value:             newUsage.Usage,
-			ValueType:         ValueTypeUsages,
-			ResourceTypeID:    resourceType.ID,
-			EffectiveDate:     time.Now(),
-			UpdateOperationID: updateOperation.ID,
-		}
-		err = tx.WithContext(ctx).Debug().Create(&update).Error
-		if err != nil {
-			return err
-		}
-
-		log.Debug("recorded the update in the databse")
-
-		return nil
+		return s.addUsagesNoTX(ctx, usage, tx)
 	})
 }
 

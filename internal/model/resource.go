@@ -17,3 +17,13 @@ type ResourceType struct {
 	// required: true
 	Unit string `gorm:"not null;unique" json:"unit"`
 }
+
+var ResourceTypeNames = []string{
+	"cpu.hours",
+	"data.size",
+}
+
+var ResourceTypeUnits = []string{
+	"cpu hours",
+	"bytes",
+}
