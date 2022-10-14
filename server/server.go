@@ -116,7 +116,12 @@ func Init(spec *config.Specification) {
 	// This should be safe to use to get the current usages.
 	queueSub(conn, spec, "user.usages.get", s.GetUsagesNATS)
 
+	// Returns all of the updates for the user. Be careful with this one. May
+	// need to be updated to support pagination in the future.
 	queueSub(conn, spec, "user.updates.get", s.GetAllUpdatesForUser)
+
+	// This is the endpoint to use if you want to add an event to the database
+	// and also have it affect the resource quota/usage total for the user.
 	queueSub(conn, spec, "user.updates.add", s.AddUpdateForUser)
 
 	log.Info("starting the service")
