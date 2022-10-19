@@ -9,7 +9,7 @@ type Quota struct {
 	UserPlanID     *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceTypeID *string      `gorm:"type:uuid;not null" json:"-"`
 	ResourceType   ResourceType `json:"resource_type"`
-	LastModifiedAt *time.Time   `json:"last_modified_at"`
+	LastModifiedAt *time.Time   `gorm:"->" json:"last_modified_at"`
 }
 
 // TableName specifies the table name to use the database.

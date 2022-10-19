@@ -9,5 +9,5 @@ type Usage struct {
 	UserPlanID     *string      `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
 	ResourceTypeID *string      `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
 	ResourceType   ResourceType `json:"resource_type"`
-	LastModifiedAt *time.Time   `json:"last_modified_at"`
+	LastModifiedAt *time.Time   `gorm:"->" json:"last_modified_at"`
 }
