@@ -6,7 +6,7 @@ import "github.com/labstack/echo/v4"
 //
 // swagger:route POST /v1/subscriptions subscriptions addSubscriptions
 //
-// Add Subscriptions
+// # Add Subscriptions
 //
 // Creates the subscriptions described in the request body.
 //
