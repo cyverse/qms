@@ -3,11 +3,26 @@ package model
 import "time"
 
 // Usage define the structure for API Usages.
+//
+// swagger:model
 type Usage struct {
-	ID             *string      `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
-	Usage          float64      `gorm:"not null" json:"usage"`
-	UserPlanID     *string      `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
-	ResourceTypeID *string      `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
-	ResourceType   ResourceType `json:"resource_type"`
-	LastModifiedAt *time.Time   `gorm:"->" json:"last_modified_at"`
+	// The usage record identifier
+	//
+	// readOnly: true
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
+
+	// The usage amount
+	Usage float64 `gorm:"not null" json:"usage"`
+
+	// The subscription identifier
+	UserPlanID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
+
+	// The resource type identifier
+	ResourceTypeID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
+
+	// The resource type associated with the usage amount
+	ResourceType ResourceType `json:"resource_type"`
+
+	// The date and time the usage value was last modified
+	LastModifiedAt *time.Time `gorm:"->" json:"last_modified_at"`
 }

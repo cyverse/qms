@@ -8,14 +8,12 @@ import (
 //
 // swagger:model
 type Plan struct {
-
 	// The plan identifier
 	//
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
 
 	// The plan name
-	//
 	Name string `gorm:"not null;unique" json:"name"`
 
 	// A brief description of the plan
@@ -29,7 +27,6 @@ type Plan struct {
 
 // PlanQuotaDefault define the structure for an Api Plan and Quota.
 type PlanQuotaDefault struct {
-
 	// The plan quota default identifier
 	//
 	// readOnly: true
@@ -53,16 +50,37 @@ type PlanQuotaDefault struct {
 }
 
 // UserPlan define the structure for the API User plans.
+//
+// swagger:model
 type UserPlan struct {
-	ID                 *string    `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
+	// The subscription identifier
+	//
+	// readOnly: true
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
+
+	// The date and time the subscription becomes active
 	EffectiveStartDate *time.Time `gorm:"" json:"effective_start_date"`
-	EffectiveEndDate   *time.Time `gorm:"" json:"effective_end_date"`
-	UserID             *string    `gorm:"type:uuid;not null" json:"-"`
-	User               User       `json:"user"`
-	PlanID             *string    `gorm:"type:uuid;not null" json:"-"`
-	Plan               Plan       `json:"plan"`
-	Quotas             []Quota    `json:"quotas"`
-	Usages             []Usage    `json:"usages"`
+
+	// The date and time the subscription expires
+	EffectiveEndDate *time.Time `gorm:"" json:"effective_end_date"`
+
+	// The user identifier
+	UserID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The user associated with the subscription
+	User User `json:"user"`
+
+	// The identifier of the plan associated with the subscription
+	PlanID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The plan associated with the subscription
+	Plan Plan `json:"plan"`
+
+	// The quotas associated with the subscription
+	Quotas []Quota `json:"quotas"`
+
+	// The recorded usage amounts associated witht he subscription
+	Usages []Usage `json:"usages"`
 }
 
 // GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be
