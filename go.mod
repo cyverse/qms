@@ -38,7 +38,6 @@ require (
 )
 
 require (
-	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/go-mod/cfg v0.0.1
 	github.com/cyverse-de/go-mod/gotelnats v0.0.10
 	github.com/cyverse-de/go-mod/logging v0.0.2
@@ -48,6 +47,7 @@ require (
 	github.com/cyverse-de/p/go/qms v0.0.7
 	github.com/cyverse-de/p/go/svcerror v0.0.5
 	github.com/golang-migrate/migrate/v4 v4.15.2
+	github.com/knadh/koanf v1.4.1
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/nats-io/nats.go v1.16.0
 	github.com/spirosoik/echo-logrus v1.0.0
@@ -68,7 +68,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/joho/godotenv v1.3.0 // indirect
-	github.com/knadh/koanf v1.4.1 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect

@@ -3,7 +3,6 @@ package controllers
 import (
 	"strings"
 
-	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/p/go/qms"
@@ -11,20 +10,6 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/sirupsen/logrus"
 )
-
-func parseFloat64(floatStr string) (float64, error) {
-	d, _, err := apd.New(0, 0).SetString(floatStr)
-	if err != nil {
-		return 0.0, err
-	}
-
-	f, err := d.Float64()
-	if err != nil {
-		return 0.0, err
-	}
-
-	return f, nil
-}
 
 // InOverageNATS is the NATS handler for checking if a user is in overage
 // for a particular resource type.
