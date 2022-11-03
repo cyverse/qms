@@ -26,67 +26,6 @@ func parseFloat64(floatStr string) (float64, error) {
 	return f, nil
 }
 
-// GetUserOveragesNATS is the NATS handler for listing all of the resources that a user
-// is in overage for.
-func (s Server) GetUserOveragesNATS(subject, reply string, request *qms.AllUserOveragesRequest) {
-	var err error
-
-	log := log.WithFields(logrus.Fields{"context": "list overages"})
-
-	responseList := pbinit.NewOverageList()
-	ctx, span := pbinit.InitAllUserOveragesRequest(request, subject)
-	defer span.End()
-
-	// If s.ReportOverages is false, then return the empty list of overages that was just created.
-	if !s.ReportOverages {
-		if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, responseList); err != nil {
-			log.Error(err)
-		}
-		return
-	}
-
-	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
-
-	results, err := db.GetUserOverages(ctx, s.GORMDB, username)
-	if err != nil {
-		responseList.Error = gotelnats.InitServiceError(
-			ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: svcerror.ErrorCode_INTERNAL,
-			},
-		)
-
-	}
-	log.Debug("after calling db.GetUserOverages()")
-
-	for _, r := range results {
-		quota, err := parseFloat64(string(r["quota"].([]uint8)))
-		if err != nil {
-			responseList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: svcerror.ErrorCode_INTERNAL,
-			})
-			break
-		}
-
-		usage, err := parseFloat64(string(r["usage"].([]uint8)))
-		if err != nil {
-			responseList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: svcerror.ErrorCode_INTERNAL,
-			})
-			break
-		}
-
-		responseList.Overages = append(responseList.Overages, &qms.Overage{
-			ResourceName: r["resource_type_name"].(string),
-			Quota:        float32(quota),
-			Usage:        float32(usage),
-		})
-	}
-
-	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, responseList); err != nil {
-		log.Error(err)
-	}
-}
-
 // InOverageNATS is the NATS handler for checking if a user is in overage
 // for a particular resource type.
 func (s Server) InOverageNATS(subject, reply string, request *qms.IsOverageRequest) {
