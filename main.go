@@ -7,16 +7,13 @@ import (
 	"os"
 
 	"github.com/cyverse-de/go-mod/cfg"
-	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/otelutils"
-	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/cyverse/QMS/config"
 	"github.com/cyverse/QMS/logging"
 	"github.com/cyverse/QMS/server"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -65,19 +62,10 @@ func main() {
 	var (
 		err error
 
-		configPath     = flag.String("config", cfg.DefaultConfigPath, "Path to the config file")
-		dotEnvPath     = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		tlsCert        = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
-		tlsKey         = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
-		caCert         = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
-		credsPath      = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
-		maxReconnects  = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
-		reconnectWait  = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
-		natsSubject    = flag.String("subject", "cyverse.qms.>", "NATS subject to subscribe to")
-		natsQueue      = flag.String("queue", "cyverse.qms", "Name of the NATS queue to use")
-		envPrefix      = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
-		reportOverages = flag.Bool("report-overages", true, "Allows the overages feature to effectively be shut down")
-		logLevel       = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
+		configPath = flag.String("config", cfg.DefaultConfigPath, "Path to the config file")
+		dotEnvPath = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		envPrefix  = flag.String("env-prefix", "QMS_", "The prefix for environment variables")
+		logLevel   = flag.String("log-level", "debug", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
 
 	flag.Parse()
@@ -92,10 +80,6 @@ func main() {
 
 	log.Info("set up tracing")
 
-	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
-
-	log.Info("registered protojon codec for nats")
-
 	// Load the configuration.
 	spec, err := config.LoadConfig(*envPrefix, *configPath, *dotEnvPath)
 	if err != nil {
@@ -103,24 +87,6 @@ func main() {
 	}
 
 	log.Info("loaded the configuration file")
-
-	spec.CACertPath = *caCert
-	spec.TLSCertPath = *tlsCert
-	spec.TLSKeyPath = *tlsKey
-	spec.CredsPath = *credsPath
-	spec.BaseQueueName = *natsQueue
-	spec.BaseSubject = *natsSubject
-	spec.MaxReconnects = *maxReconnects
-	spec.ReconnectWait = *reconnectWait
-	spec.ReportOverages = *reportOverages
-
-	log.Infof("NATS URLs are %s", spec.NatsCluster)
-	log.Infof("NATS TLS cert file is %s", *tlsCert)
-	log.Infof("NATS TLS key file is %s", *tlsKey)
-	log.Infof("NATS CA cert file is %s", *caCert)
-	log.Infof("NATS creds file is %s", *credsPath)
-	log.Infof("NATS subject is %s", *natsSubject)
-	log.Infof("NATS queue is %s", *natsQueue)
 
 	// Run the schema migrations if we're supposed to.
 	if spec.RunSchemaMigrations {

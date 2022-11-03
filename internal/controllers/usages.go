@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -45,23 +44,6 @@ func httpStatusCode(err error) int {
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
-	}
-}
-
-func natsStatusCode(err error) svcerror.ErrorCode {
-	switch err {
-	case ErrUserNotFound:
-		return svcerror.ErrorCode_NOT_FOUND
-	case ErrInvalidUsername:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidResourceName:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidUsageValue:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidUpdateType:
-		return svcerror.ErrorCode_BAD_REQUEST
-	default:
-		return svcerror.ErrorCode_INTERNAL
 	}
 }
 
