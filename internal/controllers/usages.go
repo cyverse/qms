@@ -2,16 +2,11 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/go-mod/pbinit"
-	"github.com/cyverse-de/p/go/qms"
-	"github.com/cyverse-de/p/go/svcerror"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -49,23 +44,6 @@ func httpStatusCode(err error) int {
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
-	}
-}
-
-func natsStatusCode(err error) svcerror.ErrorCode {
-	switch err {
-	case ErrUserNotFound:
-		return svcerror.ErrorCode_NOT_FOUND
-	case ErrInvalidUsername:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidResourceName:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidUsageValue:
-		return svcerror.ErrorCode_BAD_REQUEST
-	case ErrInvalidUpdateType:
-		return svcerror.ErrorCode_BAD_REQUEST
-	default:
-		return svcerror.ErrorCode_INTERNAL
 	}
 }
 
@@ -201,61 +179,6 @@ func (s Server) AddUsages(ctx echo.Context) error {
 	return model.SuccessMessage(ctx, successMsg, http.StatusOK)
 }
 
-func (s Server) AddUsagesNATS(subject, reply string, request *qms.AddUsage) {
-	var (
-		err   error
-		usage Usage
-	)
-
-	log := log.WithFields(logrus.Fields{"context": "adding usage information"})
-
-	log.Debugf("subject: %s; reply: %s", subject, reply)
-
-	response := pbinit.NewUsageResponse()
-	ctx, span := pbinit.InitAddUsage(request, subject)
-	defer span.End()
-
-	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
-	usage = Usage{
-		Username:     username,
-		ResourceName: request.ResourceName,
-		UsageValue:   request.UsageValue,
-		UpdateType:   request.UpdateType,
-	}
-
-	jsonUsage, err := json.Marshal(usage)
-	if err != nil {
-		log.Errorf("unable to JSON encode the usage update for %s: %s", username, err.Error())
-	} else {
-		log.Debugf("received a usage update: %s", jsonUsage)
-	}
-
-	if err = s.addUsage(ctx, &usage); err != nil {
-		response.Error = gotelnats.InitServiceError(
-			ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: natsStatusCode(err),
-			},
-		)
-	} else {
-		u := qms.Usage{
-			Usage: request.UsageValue,
-			ResourceType: &qms.ResourceType{
-				Name: request.ResourceName,
-			},
-		}
-		response.Usage = &u
-	}
-
-	if reply != "" {
-		if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
-			log.Error(err)
-		}
-	} else {
-		log.Info("reply subject was empty, not sending response")
-	}
-
-}
-
 func (s Server) userUpdates(ctx context.Context, username string) ([]model.Update, error) {
 	var err error
 
@@ -325,53 +248,4 @@ func (s Server) GetAllUsageUpdatesForUser(ctx echo.Context) error {
 
 	log.Info("successfully found updates")
 	return model.Success(ctx, updates, http.StatusOK)
-}
-
-func (s Server) GetUsagesNATS(subject, reply string, request *qms.GetUsages) {
-	var err error
-
-	log := log.WithFields(logrus.Fields{"context": "getting usages"})
-	response := pbinit.NewUsageList()
-	ctx, span := pbinit.InitGetUsages(request, subject)
-	defer span.End()
-
-	username := strings.TrimSuffix(request.Username, s.UsernameSuffix)
-	if username == "" {
-		response.Error = gotelnats.InitServiceError(
-			ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: svcerror.ErrorCode_BAD_REQUEST,
-			},
-		)
-	}
-
-	log = log.WithFields(logrus.Fields{"user": username})
-
-	userPlan, err := db.GetActiveUserPlanDetails(ctx, s.GORMDB, username)
-	if err != nil {
-		log.Error(err)
-		response.Error = gotelnats.InitServiceError(
-			ctx, err, &gotelnats.ErrorOptions{
-				ErrorCode: natsStatusCode(err),
-			},
-		)
-	}
-
-	for _, usage := range userPlan.Usages {
-		response.Usages = append(response.Usages, &qms.Usage{
-			Uuid:       *usage.ID,
-			Usage:      usage.Usage,
-			UserPlanId: *usage.UserPlanID,
-			ResourceType: &qms.ResourceType{
-				Uuid: *usage.ResourceType.ID,
-				Name: usage.ResourceType.Name,
-				Unit: usage.ResourceType.Unit,
-			},
-		})
-	}
-
-	log.Info("successfully found usages")
-
-	if err = gotelnats.PublishResponse(ctx, s.NATSConn, reply, response); err != nil {
-		log.Error(err)
-	}
 }

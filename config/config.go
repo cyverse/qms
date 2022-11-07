@@ -13,19 +13,9 @@ type Specification struct {
 	DatabaseURI         string
 	RunSchemaMigrations bool
 	ReinitDB            bool
-	NatsCluster         string
 	DotEnvPath          string
 	ConfigPath          string
 	EnvPrefix           string
-	MaxReconnects       int
-	ReconnectWait       int
-	CACertPath          string
-	TLSKeyPath          string
-	TLSCertPath         string
-	CredsPath           string
-	BaseSubject         string
-	BaseQueueName       string
-	ReportOverages      bool
 	UsernameSuffix      string
 }
 
@@ -51,11 +41,6 @@ func LoadConfig(envPrefix, configPath, dotEnvPath string) (*Specification, error
 
 	s.RunSchemaMigrations = k.Bool("database.migrate")
 	s.ReinitDB = k.Bool("database.reinit")
-
-	s.NatsCluster = k.String("nats.cluster")
-	if s.NatsCluster == "" {
-		return nil, errors.New("nats.cluster must be set in the configuration file")
-	}
 
 	s.UsernameSuffix = k.String("username.suffix")
 	if s.UsernameSuffix == "" {

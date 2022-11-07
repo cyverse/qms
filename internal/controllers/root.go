@@ -7,7 +7,6 @@ import (
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/cyverse/QMS/logging"
 	"github.com/labstack/echo/v4"
-	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -22,7 +21,6 @@ type Server struct {
 	Service        string
 	Title          string
 	Version        string
-	NATSConn       *nats.EncodedConn
 	ReportOverages bool
 	UsernameSuffix string
 }
@@ -40,12 +38,13 @@ func (s Server) ServerInfo() *model.RootResponse {
 //
 // swagger:route GET / misc getRoot
 //
-// General API Information
+// # General API Information
 //
 // Lists general information about the service API itself.
 //
 // responses:
-//   200: rootResponse
+//
+//	200: rootResponse
 func (s Server) RootHandler(ctx echo.Context) error {
 	return model.Success(ctx, s.ServerInfo(), http.StatusOK)
 }
@@ -54,12 +53,13 @@ func (s Server) RootHandler(ctx echo.Context) error {
 //
 // swagger:route GET /v1 misc getV1Root
 //
-// General API Version 1 Information
+// # General API Version 1 Information
 //
 // Lists general information about version 1 of the service API.
 //
 // responses:
-//   200: apiVersionResponse
+//
+//	200: apiVersionResponse
 func (s Server) V1RootHandler(ctx echo.Context) error {
 	resp := model.APIVersionResponse{
 		RootResponse: *s.ServerInfo(),
