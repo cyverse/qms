@@ -86,3 +86,19 @@ func GetDefaultQuotaForPlan(ctx context.Context, db *gorm.DB, planID string) ([]
 
 	return planQuotaDefaults, nil
 }
+
+// GetPlansByName builds a map from plan name to plan details.
+func GetPlansByName(ctx context.Context, db *gorm.DB) (map[string]*model.Plan, error) {
+	plans, err := ListPlans(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the map from the plan name to the plan details.
+	result := make(map[string]*model.Plan)
+	for _, plan := range plans {
+		result[plan.Name] = plan
+	}
+
+	return result, nil
+}

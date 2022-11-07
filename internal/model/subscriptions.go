@@ -34,3 +34,10 @@ type SubscriptionResponse struct {
 	// The reason the subscription couldn't be created if an error occurred.
 	FailureReason *string `json:"failure_reason"`
 }
+
+// SubscriptionResponseFromUserPlan converts a user plan to a subscription response.
+func SubscriptionResponseFromUserPlan(userPlan *UserPlan) *SubscriptionResponse {
+	var resp SubscriptionResponse
+	resp.UserPlan = *userPlan
+	return &resp
+}
