@@ -9,10 +9,10 @@ type Quota struct {
 	// The quota identifier
 	//
 	// readOnly: true
-	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
 
 	// The resource usage limit
-	Quota float64 `json:"quota"`
+	Quota float64 `json:"quota,omitempty"`
 
 	// The user plan ID
 	UserPlanID *string `gorm:"type:uuid;not null" json:"-"`
@@ -21,10 +21,10 @@ type Quota struct {
 	ResourceTypeID *string `gorm:"type:uuid;not null" json:"-"`
 
 	// The resource type associated with this quota
-	ResourceType ResourceType `json:"resource_type"`
+	ResourceType ResourceType `json:"resource_type,omitempty"`
 
 	// The date and time the quota was last modified
-	LastModifiedAt *time.Time `gorm:"->" json:"last_modified_at"`
+	LastModifiedAt *time.Time `gorm:"->" json:"last_modified_at,omitempty"`
 }
 
 // TableName specifies the table name to use the database.

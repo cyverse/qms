@@ -32,7 +32,7 @@ type SubscriptionResponse struct {
 	UserPlan
 
 	// The reason the subscription couldn't be created if an error occurred.
-	FailureReason *string `json:"failure_reason"`
+	FailureReason *string `json:"failure_reason,omitempty"`
 
 	// True if the subscription was just created.
 	NewSubscription bool `json:"new_subscription"`
