@@ -279,7 +279,7 @@ func fixUsername(ctx context.Context, tx *gorm.DB, newUsername string, usernameS
 			return errors.Wrapf(err, "unable to subscribe %s to the default plan", newUser.Username)
 		}
 	} else {
-		plan := &oldSubscription.Plan
+		plan := oldSubscription.Plan
 		newSubscription, err = db.SubscribeUserToPlan(ctx, tx, newUser, plan)
 		if err != nil {
 			return errors.Wrapf(err, "unable to subscribe %s to the %s plan", newUser.Username, plan.Name)
