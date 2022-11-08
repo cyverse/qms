@@ -52,7 +52,7 @@ func (sa *SubscriptionAdder) subscriptionError(f string, args ...any) *model.Sub
 // AddSubscription subscribes a user to a subscription plan.
 func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *string) *model.SubscriptionResponse {
 	if username == nil || *username == "" {
-		return sa.subscriptionError("no username provied in request")
+		return sa.subscriptionError("no username provided in request")
 	}
 	if planName == nil || *planName == "" {
 		return sa.subscriptionError("no plan name provided in request")
