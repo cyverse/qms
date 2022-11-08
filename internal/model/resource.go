@@ -1,5 +1,10 @@
 package model
 
+const (
+	RESOURCE_TYPE_CPU_HOURS = "cpu.hours"
+	RESOURCE_TYPE_DATA_SIZE = "data.size"
+)
+
 // ResourceType defines the structure for ResourceTypes.
 //
 // swagger:model

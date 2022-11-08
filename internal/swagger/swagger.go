@@ -130,6 +130,13 @@ type SuccessMessageResponseWrapoper struct {
 // swagger:parameters addSubscriptions
 type AddSubscriptionsParameters struct {
 
+	// If `true` or unspecified, the new subscriptions will be created regardless of the user's current subscription
+	// level. If `false`, the subscription will only be created if the user's subscription level is lower than the
+	// requested subscription level.
+	//
+	// in: query
+	Force *bool `json:"force"`
+
 	// The subscriptions to add
 	//
 	// in: body

@@ -25,6 +25,18 @@ type Plan struct {
 	PlanQuotaDefaults []PlanQuotaDefault `json:"plan_quota_defaults"`
 }
 
+// GetDefaultQuotaValue returns the default quota value associated with the resource type with the given name.
+func (p *Plan) GetDefaultQuotaValue(resourcetypeName string) float64 {
+	var value float64
+	for _, quotaDefault := range p.PlanQuotaDefaults {
+		if quotaDefault.ResourceType.Name == resourcetypeName {
+			value = quotaDefault.QuotaValue
+			break
+		}
+	}
+	return value
+}
+
 // PlanQuotaDefault define the structure for an Api Plan and Quota.
 type PlanQuotaDefault struct {
 	// The plan quota default identifier

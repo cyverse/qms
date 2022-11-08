@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cyverse-de/notifications/query"
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
@@ -13,24 +14,29 @@ import (
 	"gorm.io/gorm"
 )
 
+// SubscriptionAdderConfig contains the configuration for a subscription adder.
+type SubscriptionAdderConfig struct {
+	Log   *logrus.Entry
+	Ctx   context.Context
+	Force bool
+}
+
 // SubscriptionAdder encapsulates the addition of subscriptions with a cached index of subscription plans.
 type SubscriptionAdder struct {
-	log         *logrus.Entry
-	ctx         context.Context
+	cfg         *SubscriptionAdderConfig
 	plansByName map[string]*model.Plan
 }
 
 // NewSubscriptionAdder creates a new SubscriptionAdder instance.
-func NewSubscriptionAdder(log *logrus.Entry, ctx context.Context, tx *gorm.DB) (*SubscriptionAdder, error) {
-	plansByName, err := db.GetPlansByName(ctx, tx)
+func NewSubscriptionAdder(tx *gorm.DB, cfg *SubscriptionAdderConfig) (*SubscriptionAdder, error) {
+	plansByName, err := db.GetPlansByName(cfg.Ctx, tx)
 	if err != nil {
 		err = errors.Wrap(err, "unable to load subscription plan information")
 		return nil, err
 	}
 
 	subscriptionAdder := &SubscriptionAdder{
-		log:         log,
-		ctx:         ctx,
+		cfg:         cfg,
 		plansByName: plansByName,
 	}
 	return subscriptionAdder, nil
@@ -59,36 +65,51 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	}
 
 	// Add some fields to the logger.
-	var log = sa.log.WithFields(
+	var log = sa.cfg.Log.WithFields(
 		logrus.Fields{
 			"username": *username,
 			"planName": *planName,
 		},
 	)
-	log.Tracef("adding a new subscription")
 
 	// Get the user information.
-	user, err := db.GetUser(sa.ctx, tx, *username)
+	user, err := db.GetUser(sa.cfg.Ctx, tx, *username)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(err.Error())
 	}
 
+	// Check the current plan if we're supposed to.
+	if !sa.cfg.Force {
+		activeSubscription, err := db.GetActiveUserPlanDetails(sa.cfg.Ctx, tx, *username)
+		if err != nil {
+			log.Error(err)
+			return sa.subscriptionError(err.Error())
+		}
+
+		// Compare the CPU allocations to determine the plan levels to determine if the user gets a new subscription.
+		activeCPUAllocation := activeSubscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+		newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+		if newCPUAllocation <= activeCPUAllocation {
+			return model.SubscriptionResponseFromUserPlan(activeSubscription, false)
+		}
+	}
+
 	// Add the subscription.
-	sub, err := db.SubscribeUserToPlan(sa.ctx, tx, user, plan)
+	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(err.Error())
 	}
 
 	// Load the subscription details.
-	sub, err = db.GetUserPlanDetails(sa.ctx, tx, *sub.ID)
+	sub, err = db.GetUserPlanDetails(sa.cfg.Ctx, tx, *sub.ID)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(err.Error())
 	}
 
-	return model.SubscriptionResponseFromUserPlan(sub)
+	return model.SubscriptionResponseFromUserPlan(sub, true)
 }
 
 // AddSubscriptions creates the subscriptions described in the request body.
@@ -118,8 +139,22 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 		return model.Error(ctx, msg, http.StatusBadRequest)
 	}
 
+	// Get the value of the `force` query parameter.
+	force := true
+	force, err = query.ValidateBooleanQueryParam(ctx, "force", &force)
+	if err != nil {
+		msg := fmt.Sprintf("invalid value for query parameter, force: %s", err)
+		log.Error(msg)
+		return model.Error(ctx, msg, http.StatusBadRequest)
+	}
+
 	// Create a new subscription adder.
-	subscriptionAdder, err := NewSubscriptionAdder(log, context, s.GORMDB)
+	saConfig := &SubscriptionAdderConfig{
+		Log:   log,
+		Ctx:   context,
+		Force: force,
+	}
+	subscriptionAdder, err := NewSubscriptionAdder(s.GORMDB, saConfig)
 	if err != nil {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
