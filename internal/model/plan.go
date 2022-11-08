@@ -91,7 +91,7 @@ type UserPlan struct {
 	// The quotas associated with the subscription
 	Quotas []Quota `json:"quotas,omitempty"`
 
-	// The recorded usage amounts associated witht he subscription
+	// The recorded usage amounts associated with the subscription
 	Usages []Usage `json:"usages,omitempty"`
 }
 

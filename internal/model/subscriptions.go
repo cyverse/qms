@@ -15,7 +15,7 @@ type SubscriptionRequest struct {
 	PlanName *string `json:"plan_name"`
 }
 
-//	SubscriptionRequests represents a list of subscription requests.
+// SubscriptionRequests represents a list of subscription requests.
 //
 // swagger: model
 type SubscriptionRequests struct {
