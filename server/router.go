@@ -98,6 +98,8 @@ func RegisterHandlers(s controllers.Server) {
 	subscriptions := v1.Group("/subscriptions")
 	subscriptions.POST("", s.AddSubscriptions)
 	subscriptions.POST("/", s.AddSubscriptions)
+	subscriptions.GET("", s.ListSubscriptions)
+	subscriptions.GET("/", s.ListSubscriptions)
 
 	usages := v1.Group("/usages")
 	usages.GET("/:username", s.GetAllUsageOfUser)

@@ -157,6 +157,20 @@ type SubscriptionsResponse struct {
 	}
 }
 
+// Subscription Listing
+//
+// swagger:response subscriptionListing
+type SubscriptionListing struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The list of subscriptions
+		Result []model.SubscriptionListing
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse

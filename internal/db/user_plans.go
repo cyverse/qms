@@ -122,6 +122,25 @@ func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*m
 	return userPlan, err
 }
 
+// ListUserPlans lists subscriptions for multiple users.
+func ListUserPlans(ctx context.Context, db *gorm.DB) ([]*model.UserPlan, error) {
+	var userPlans []*model.UserPlan
+
+	err := db.WithContext(ctx).
+		Preload("User").
+		Preload("Plan").
+		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Quotas").
+		Preload("Quotas.ResourceType").
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Find(&userPlans).
+		Error
+
+	return userPlans, err
+}
+
 // GetActiveUserPlanDetails retrieves the user plan information that is currently active for the user. The effective
 // start date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user

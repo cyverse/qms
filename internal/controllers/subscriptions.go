@@ -175,3 +175,42 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 
 	return model.Success(ctx, response, http.StatusOK)
 }
+
+// ListSubscriptions is the handler for the GET /v1/subscriptions endpoint.
+//
+// swagger:route GET /v1/subscriptions subscriptions listSubscriptions
+//
+// # List Subscriptions
+//
+// Lists existing CyVerse subscriptions.
+//
+// Responses:
+//
+//	200: subscriptionListing
+func (s Server) ListSubscriptions(ctx echo.Context) error {
+	var err error
+
+	// Initialize the context for the endpoint.
+	var log = log.WithField("context", "list-subscriptions")
+	var context = ctx.Request().Context()
+
+	// Obtain the subscription listing.
+	var subscriptions []*model.UserPlan
+	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		subscriptions, err = db.ListUserPlans(context, tx)
+		return err
+	})
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	// Build the result.
+	return model.Success(
+		ctx,
+		&model.SubscriptionListing{
+			Subscriptions: subscriptions,
+		},
+		http.StatusOK,
+	)
+}
