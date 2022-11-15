@@ -9,11 +9,11 @@ type User struct {
 	//
 	// in: path
 	// required: true
-	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
 
 	// The username
 	//
 	// in: path
 	// required: true
-	Username string `gorm:"not null;unique" json:"username"`
+	Username string `gorm:"not null;unique" json:"username,omitempty"`
 }

@@ -2,14 +2,29 @@ package model
 
 import "time"
 
-// Quota define the structure for an Api Plan and Quota.
+// Quota represents a resource usage limit associated with a subscription.
+//
+// swagger:model
 type Quota struct {
-	ID             *string      `gorm:"type:uuid;default:uuid_generate_v1()" json:"id"`
-	Quota          float64      `json:"quota"`
-	UserPlanID     *string      `gorm:"type:uuid;not null" json:"-"`
-	ResourceTypeID *string      `gorm:"type:uuid;not null" json:"-"`
-	ResourceType   ResourceType `json:"resource_type"`
-	LastModifiedAt *time.Time   `gorm:"->" json:"last_modified_at"`
+	// The quota identifier
+	//
+	// readOnly: true
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
+
+	// The resource usage limit
+	Quota float64 `json:"quota,omitempty"`
+
+	// The user plan ID
+	UserPlanID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The resource type ID
+	ResourceTypeID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The resource type associated with this quota
+	ResourceType ResourceType `json:"resource_type,omitempty"`
+
+	// The date and time the quota was last modified
+	LastModifiedAt *time.Time `gorm:"->" json:"last_modified_at,omitempty"`
 }
 
 // TableName specifies the table name to use the database.

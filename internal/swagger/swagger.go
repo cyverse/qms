@@ -2,15 +2,15 @@
 //
 // Documentation of the QMS Api
 //
-//     Schemes: http
-//     BasePath: /
-//     Version: V1
+//	Schemes: http
+//	BasePath: /
+//	Version: V1
 //
-//     Consumes:
-//     - application/json
+//	Consumes:
+//	- application/json
 //
-//     Produces:
-//     - application/json
+//	Produces:
+//	- application/json
 //
 // swagger:meta
 package swagger
@@ -122,6 +122,38 @@ type SuccessMessageResponseWrapoper struct {
 
 		// The success message.
 		Result string `json:"result"`
+	}
+}
+
+// Parameters for the endpoint used to add multiple subscriptions.
+//
+// swagger:parameters addSubscriptions
+type AddSubscriptionsParameters struct {
+
+	// If `true` or unspecified, the new subscriptions will be created regardless of the user's current subscription
+	// level. If `false`, the subscription will only be created if the user's subscription level is lower than the
+	// requested subscription level.
+	//
+	// in: query
+	Force *bool `json:"force"`
+
+	// The subscriptions to add
+	//
+	// in: body
+	Body model.SubscriptionRequests
+}
+
+// Subscriptions Response
+//
+// swagger:response subscriptionsResponse
+type SubscriptionsResponse struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The list of subscription responses
+		Result []model.SubscriptionResponse
 	}
 }
 
