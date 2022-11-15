@@ -48,3 +48,36 @@ func ValidateBooleanQueryParam(ctx echo.Context, name string, defaultValue *bool
 	}
 	return result, nil
 }
+
+// ValidateIntQueryParam extracts an optional integer query parameter and validates it.
+func ValidateIntQueryParam(ctx echo.Context, name string, defaultValue *int32, checks ...string) (int32, error) {
+	errMsg := fmt.Sprintf("invalid query parameter: %s", name)
+	value := ctx.QueryParam(name)
+	var result int32
+
+	// Assume that the parameter is required if there's no default.
+	if defaultValue == nil && value == "" {
+		return result, fmt.Errorf("missing rquired query parameter: %s", name)
+	}
+
+	// If no value was provided at this point then the parameter is optional; return the default value.
+	if value == "" {
+		return *defaultValue, nil
+	}
+
+	// Parse the parameter value.
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil {
+		return result, errors.Wrap(err, errMsg)
+	}
+	result = int32(parsed)
+
+	// Perform any checks that we're supposed to perform.
+	for _, check := range checks {
+		if err = v.Var(result, check); err != nil {
+			return result, errors.Wrap(err, errMsg)
+		}
+	}
+
+	return result, nil
+}

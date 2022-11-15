@@ -122,11 +122,41 @@ func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*m
 	return userPlan, err
 }
 
+// UserPlanListingParams represents the parameters that can be used to customize a user plan listing.
+type UserPlanListingParams struct {
+	Offset    int
+	Limit     int
+	SortField string
+	SortOrder string
+}
+
 // ListUserPlans lists subscriptions for multiple users.
-func ListUserPlans(ctx context.Context, db *gorm.DB) ([]*model.UserPlan, error) {
+func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, error) {
 	var userPlans []*model.UserPlan
 
+	// Determine the offset and limit to use.
+	var offset int = 0
+	if params != nil && params.Offset >= 0 {
+		offset = params.Offset
+	}
+	var limit int = 50
+	if params != nil && params.Limit >= 0 {
+		limit = params.Limit
+	}
+
+	// Determine the sort field and sort order to use.
+	sortField := "users.username"
+	if params != nil && params.SortField != "" {
+		sortField = params.SortField
+	}
+	order := "asc"
+	if params != nil && params.SortOrder != "" {
+		order = params.SortOrder
+	}
+	orderBy := fmt.Sprintf("%s %s", sortField, order)
+
 	err := db.WithContext(ctx).
+		Joins("JOIN users ON user_plans.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
 		Preload("Plan.PlanQuotaDefaults").
@@ -135,6 +165,13 @@ func ListUserPlans(ctx context.Context, db *gorm.DB) ([]*model.UserPlan, error) 
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		).
+		Order(orderBy).
+		Offset(offset).
+		Limit(limit).
 		Find(&userPlans).
 		Error
 

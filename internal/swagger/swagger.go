@@ -157,6 +157,22 @@ type SubscriptionsResponse struct {
 	}
 }
 
+// Subscription listing parameters.
+//
+// swagger:parameters listSubscriptions
+type ListSubscriptionsParameters struct {
+
+	// The starting offset for the listing
+	//
+	// in: query
+	Offset int32 `json:"offset"`
+
+	// The maximum number of subscriptions to include in the listing.
+	//
+	// in: query
+	Limit int32 `json:"limit"`
+}
+
 // Subscription Listing
 //
 // swagger:response subscriptionListing

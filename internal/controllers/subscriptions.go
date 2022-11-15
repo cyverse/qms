@@ -95,6 +95,13 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		}
 	}
 
+	// Deactivate all active subscriptions for the user.
+	err = db.DeactivateUserPlans(sa.cfg.Ctx, tx, *user.ID)
+	if err != nil {
+		log.Error(err)
+		return sa.subscriptionError(err.Error())
+	}
+
 	// Add the subscription.
 	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
 	if err != nil {
@@ -194,10 +201,28 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 	var log = log.WithField("context", "list-subscriptions")
 	var context = ctx.Request().Context()
 
+	// Extract the query parameters.
+	var offset int32 = 0
+	offset, err = query.ValidateIntQueryParam(ctx, "offset", &offset, "gte=0")
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	var limit int32 = 50
+	limit, err = query.ValidateIntQueryParam(ctx, "limit", &limit, "gte=0")
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
 	// Obtain the subscription listing.
 	var subscriptions []*model.UserPlan
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
-		subscriptions, err = db.ListUserPlans(context, tx)
+		params := &db.UserPlanListingParams{
+			Offset: int(offset),
+			Limit:  int(limit),
+		}
+		subscriptions, err = db.ListUserPlans(context, tx, params)
 		return err
 	})
 	if err != nil {
