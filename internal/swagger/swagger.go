@@ -171,6 +171,18 @@ type ListSubscriptionsParameters struct {
 	//
 	// in: query
 	Limit int32 `json:"limit"`
+
+	// The sort field to use for the listing
+	//
+	// enum: username,start-date,end-date
+	// in: query
+	SortField string `json:"sort-field"`
+
+	// The sort order to use for the listing
+	//
+	// enum: asc,desc
+	// in: query
+	SortOrder string `json:"sort-order"`
 }
 
 // Subscription Listing

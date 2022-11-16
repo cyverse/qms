@@ -214,13 +214,40 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+	sortField := "username"
+	validSortFields := []string{"username", "start-date", "end-date"}
+	sortField, err = query.ValidateEnumQueryParam(ctx, "sort-field", validSortFields, &sortField)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	sortOrder, err := query.ValidateSortOrder(ctx)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Determine the sort field to pass to the database.
+	dbSortFieldFor := map[string]string{
+		"username":   "users.username",
+		"start-date": "user_plans.effective_start_date",
+		"end-date":   "user_plans.effective_end_date",
+	}
+	dbSortField, ok := dbSortFieldFor[sortField]
+	if !ok {
+		err := fmt.Errorf("sort field name inconsistency detected for %s: please contact support", dbSortField)
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
 
 	// Obtain the subscription listing.
 	var subscriptions []*model.UserPlan
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		params := &db.UserPlanListingParams{
-			Offset: int(offset),
-			Limit:  int(limit),
+			Offset:    int(offset),
+			Limit:     int(limit),
+			SortField: dbSortField,
+			SortOrder: sortOrder,
 		}
 		subscriptions, err = db.ListUserPlans(context, tx, params)
 		return err
