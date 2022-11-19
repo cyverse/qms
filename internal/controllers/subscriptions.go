@@ -226,6 +226,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+	search := ctx.QueryParam("search")
 
 	// Determine the sort field to pass to the database.
 	dbSortFieldFor := map[string]string{
@@ -248,6 +249,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 			Limit:     int(limit),
 			SortField: dbSortField,
 			SortOrder: sortOrder,
+			Search:    search,
 		}
 		subscriptions, err = db.ListUserPlans(context, tx, params)
 		return err

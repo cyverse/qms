@@ -167,7 +167,7 @@ type ListSubscriptionsParameters struct {
 	// in: query
 	Offset int32 `json:"offset"`
 
-	// The maximum number of subscriptions to include in the listing.
+	// The maximum number of subscriptions to include in the listing
 	//
 	// in: query
 	Limit int32 `json:"limit"`
@@ -183,6 +183,11 @@ type ListSubscriptionsParameters struct {
 	// enum: asc,desc
 	// in: query
 	SortOrder string `json:"sort-order"`
+
+	// The username substring to search for in the listing
+	//
+	// in: query
+	Search string `json:"search"`
 }
 
 // Subscription Listing

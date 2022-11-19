@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -128,6 +129,7 @@ type UserPlanListingParams struct {
 	Limit     int
 	SortField string
 	SortOrder string
+	Search    string
 }
 
 // ListUserPlans lists subscriptions for multiple users.
@@ -155,7 +157,8 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 	}
 	orderBy := fmt.Sprintf("%s %s", sortField, order)
 
-	err := db.WithContext(ctx).
+	// Build the initial query.
+	query := db.WithContext(ctx).
 		Joins("JOIN users ON user_plans.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
@@ -171,9 +174,16 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 		).
 		Order(orderBy).
 		Offset(offset).
-		Limit(limit).
-		Find(&userPlans).
-		Error
+		Limit(limit)
+
+	// Add the search filter if we're supposed to.
+	if params.Search != "" {
+		search := strings.ReplaceAll(params.Search, "%", "\\%")
+		search = strings.ReplaceAll(search, "_", "\\_")
+		query = query.Where("users.username LIKE ?", "%"+search+"%")
+	}
+
+	err := query.Debug().Find(&userPlans).Error
 
 	return userPlans, err
 }
