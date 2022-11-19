@@ -52,4 +52,7 @@ func SubscriptionResponseFromUserPlan(userPlan *UserPlan, newSubscription bool) 
 type SubscriptionListing struct {
 	// The subscriptions in the listing.
 	Subscriptions []*UserPlan `json:"subscriptions"`
+
+	// The total number of matched subscriptions.
+	Total int64 `json:"total"`
 }

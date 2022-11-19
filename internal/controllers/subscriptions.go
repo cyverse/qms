@@ -243,6 +243,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 
 	// Obtain the subscription listing.
 	var subscriptions []*model.UserPlan
+	var count int64
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		params := &db.UserPlanListingParams{
 			Offset:    int(offset),
@@ -251,7 +252,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 			SortOrder: sortOrder,
 			Search:    search,
 		}
-		subscriptions, err = db.ListUserPlans(context, tx, params)
+		subscriptions, count, err = db.ListUserPlans(context, tx, params)
 		return err
 	})
 	if err != nil {
@@ -264,6 +265,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 		ctx,
 		&model.SubscriptionListing{
 			Subscriptions: subscriptions,
+			Total:         count,
 		},
 		http.StatusOK,
 	)

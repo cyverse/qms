@@ -133,8 +133,9 @@ type UserPlanListingParams struct {
 }
 
 // ListUserPlans lists subscriptions for multiple users.
-func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, error) {
+func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, int64, error) {
 	var userPlans []*model.UserPlan
+	var count int64
 
 	// Determine the offset and limit to use.
 	var offset int = 0
@@ -157,8 +158,8 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 	}
 	orderBy := fmt.Sprintf("%s %s", sortField, order)
 
-	// Build the initial query.
-	query := db.WithContext(ctx).
+	// Build the base query.
+	baseQuery := db.WithContext(ctx).
 		Joins("JOIN users ON user_plans.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
@@ -171,21 +172,30 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 		Where(
 			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
 				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
-		).
-		Order(orderBy).
-		Offset(offset).
-		Limit(limit)
+		)
 
-	// Add the search filter if we're supposed to.
+	// Add the search clause if we're supposed to.
 	if params.Search != "" {
 		search := strings.ReplaceAll(params.Search, "%", "\\%")
 		search = strings.ReplaceAll(search, "_", "\\_")
-		query = query.Where("users.username LIKE ?", "%"+search+"%")
+		baseQuery = baseQuery.Where("users.username LIKE ?", "%"+search+"%")
 	}
 
-	err := query.Debug().Find(&userPlans).Error
+	// Count the number of items in the result set.
+	err := baseQuery.
+		Model(&userPlans).
+		Count(&count).Error
 
-	return userPlans, err
+	// Look up the result set.
+	if err == nil {
+		err = baseQuery.
+			Offset(offset).
+			Limit(limit).
+			Order(orderBy).
+			Find(&userPlans).Error
+	}
+
+	return userPlans, count, err
 }
 
 // GetActiveUserPlanDetails retrieves the user plan information that is currently active for the user. The effective
