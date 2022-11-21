@@ -178,11 +178,11 @@ type ListSubscriptionsParameters struct {
 	// in: query
 	SortField string `json:"sort-field"`
 
-	// The sort order to use for the listing
+	// The sort direction to use for the listing
 	//
 	// enum: asc,desc
 	// in: query
-	SortOrder string `json:"sort-order"`
+	SortDir string `json:"sort-dir"`
 
 	// The username substring to search for in the listing
 	//

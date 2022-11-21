@@ -115,9 +115,9 @@ func ValidateEnumQueryParam(ctx echo.Context, name string, vals []string, defaul
 	return value, nil
 }
 
-// ValidateSortOrder extracts the value of a sort order query parameter and validates it. The value will always be
+// ValidateSortDir extracts the value of a sort direction query parameter and validates it. The value will always be
 // converted to lower case before validating and returning it.
-func ValidateSortOrder(ctx echo.Context) (string, error) {
-	defaultSortOrder := "asc"
-	return ValidateEnumQueryParam(ctx, "sort-order", []string{"asc", "desc"}, &defaultSortOrder)
+func ValidateSortDir(ctx echo.Context) (string, error) {
+	defaultSortDir := "asc"
+	return ValidateEnumQueryParam(ctx, "sort-dir", []string{"asc", "desc"}, &defaultSortDir)
 }

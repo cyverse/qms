@@ -128,7 +128,7 @@ type UserPlanListingParams struct {
 	Offset    int
 	Limit     int
 	SortField string
-	SortOrder string
+	SortDir   string
 	Search    string
 }
 
@@ -153,8 +153,8 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 		sortField = params.SortField
 	}
 	order := "asc"
-	if params != nil && params.SortOrder != "" {
-		order = params.SortOrder
+	if params != nil && params.SortDir != "" {
+		order = params.SortDir
 	}
 	orderBy := fmt.Sprintf("%s %s", sortField, order)
 

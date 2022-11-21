@@ -221,7 +221,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
-	sortOrder, err := query.ValidateSortOrder(ctx)
+	sortDir, err := query.ValidateSortDir(ctx)
 	if err != nil {
 		log.Error(err)
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
@@ -249,7 +249,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 			Offset:    int(offset),
 			Limit:     int(limit),
 			SortField: dbSortField,
-			SortOrder: sortOrder,
+			SortDir:   sortDir,
 			Search:    search,
 		}
 		subscriptions, count, err = db.ListUserPlans(context, tx, params)
