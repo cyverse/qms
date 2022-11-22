@@ -157,6 +157,53 @@ type SubscriptionsResponse struct {
 	}
 }
 
+// Subscription listing parameters.
+//
+// swagger:parameters listSubscriptions
+type ListSubscriptionsParameters struct {
+
+	// The starting offset for the listing
+	//
+	// in: query
+	Offset int32 `json:"offset"`
+
+	// The maximum number of subscriptions to include in the listing
+	//
+	// in: query
+	Limit int32 `json:"limit"`
+
+	// The sort field to use for the listing
+	//
+	// enum: username,start-date,end-date
+	// in: query
+	SortField string `json:"sort-field"`
+
+	// The sort direction to use for the listing
+	//
+	// enum: asc,desc
+	// in: query
+	SortDir string `json:"sort-dir"`
+
+	// The username substring to search for in the listing
+	//
+	// in: query
+	Search string `json:"search"`
+}
+
+// Subscription Listing
+//
+// swagger:response subscriptionListing
+type SubscriptionListing struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The list of subscriptions
+		Result []model.SubscriptionListing
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse

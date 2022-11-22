@@ -95,6 +95,13 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		}
 	}
 
+	// Deactivate all active subscriptions for the user.
+	err = db.DeactivateUserPlans(sa.cfg.Ctx, tx, *user.ID)
+	if err != nil {
+		log.Error(err)
+		return sa.subscriptionError(err.Error())
+	}
+
 	// Add the subscription.
 	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
 	if err != nil {
@@ -174,4 +181,92 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 	}
 
 	return model.Success(ctx, response, http.StatusOK)
+}
+
+// ListSubscriptions is the handler for the GET /v1/subscriptions endpoint.
+//
+// swagger:route GET /v1/subscriptions subscriptions listSubscriptions
+//
+// # List Subscriptions
+//
+// Lists existing CyVerse subscriptions.
+//
+// Responses:
+//
+//	200: subscriptionListing
+func (s Server) ListSubscriptions(ctx echo.Context) error {
+	var err error
+
+	// Initialize the context for the endpoint.
+	var log = log.WithField("context", "list-subscriptions")
+	var context = ctx.Request().Context()
+
+	// Extract the query parameters.
+	var offset int32 = 0
+	offset, err = query.ValidateIntQueryParam(ctx, "offset", &offset, "gte=0")
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	var limit int32 = 50
+	limit, err = query.ValidateIntQueryParam(ctx, "limit", &limit, "gte=0")
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	sortField := "username"
+	validSortFields := []string{"username", "start-date", "end-date"}
+	sortField, err = query.ValidateEnumQueryParam(ctx, "sort-field", validSortFields, &sortField)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	sortDir, err := query.ValidateSortDir(ctx)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	search := ctx.QueryParam("search")
+
+	// Determine the sort field to pass to the database.
+	dbSortFieldFor := map[string]string{
+		"username":   "users.username",
+		"start-date": "user_plans.effective_start_date",
+		"end-date":   "user_plans.effective_end_date",
+	}
+	dbSortField, ok := dbSortFieldFor[sortField]
+	if !ok {
+		err := fmt.Errorf("sort field name inconsistency detected for %s: please contact support", dbSortField)
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	// Obtain the subscription listing.
+	var subscriptions []*model.UserPlan
+	var count int64
+	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		params := &db.UserPlanListingParams{
+			Offset:    int(offset),
+			Limit:     int(limit),
+			SortField: dbSortField,
+			SortDir:   sortDir,
+			Search:    search,
+		}
+		subscriptions, count, err = db.ListUserPlans(context, tx, params)
+		return err
+	})
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+	}
+
+	// Build the result.
+	return model.Success(
+		ctx,
+		&model.SubscriptionListing{
+			Subscriptions: subscriptions,
+			Total:         count,
+		},
+		http.StatusOK,
+	)
 }

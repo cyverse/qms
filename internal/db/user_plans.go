@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cyverse/QMS/internal/model"
@@ -120,6 +121,81 @@ func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*m
 		Error
 
 	return userPlan, err
+}
+
+// UserPlanListingParams represents the parameters that can be used to customize a user plan listing.
+type UserPlanListingParams struct {
+	Offset    int
+	Limit     int
+	SortField string
+	SortDir   string
+	Search    string
+}
+
+// ListUserPlans lists subscriptions for multiple users.
+func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, int64, error) {
+	var userPlans []*model.UserPlan
+	var count int64
+
+	// Determine the offset and limit to use.
+	var offset int = 0
+	if params != nil && params.Offset >= 0 {
+		offset = params.Offset
+	}
+	var limit int = 50
+	if params != nil && params.Limit >= 0 {
+		limit = params.Limit
+	}
+
+	// Determine the sort field and sort order to use.
+	sortField := "users.username"
+	if params != nil && params.SortField != "" {
+		sortField = params.SortField
+	}
+	order := "asc"
+	if params != nil && params.SortDir != "" {
+		order = params.SortDir
+	}
+	orderBy := fmt.Sprintf("%s %s", sortField, order)
+
+	// Build the base query.
+	baseQuery := db.WithContext(ctx).
+		Joins("JOIN users ON user_plans.user_id=users.id").
+		Preload("User").
+		Preload("Plan").
+		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Quotas").
+		Preload("Quotas.ResourceType").
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		)
+
+	// Add the search clause if we're supposed to.
+	if params.Search != "" {
+		search := strings.ReplaceAll(params.Search, "%", "\\%")
+		search = strings.ReplaceAll(search, "_", "\\_")
+		baseQuery = baseQuery.Where("users.username LIKE ?", "%"+search+"%")
+	}
+
+	// Count the number of items in the result set.
+	err := baseQuery.
+		Model(&userPlans).
+		Count(&count).Error
+
+	// Look up the result set.
+	if err == nil {
+		err = baseQuery.
+			Offset(offset).
+			Limit(limit).
+			Order(orderBy).
+			Find(&userPlans).Error
+	}
+
+	return userPlans, count, err
 }
 
 // GetActiveUserPlanDetails retrieves the user plan information that is currently active for the user. The effective

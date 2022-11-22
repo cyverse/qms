@@ -45,3 +45,14 @@ func SubscriptionResponseFromUserPlan(userPlan *UserPlan, newSubscription bool) 
 	resp.NewSubscription = newSubscription
 	return &resp
 }
+
+// SubscriptionListing represents a list of subscriptions.
+//
+// swagger: model
+type SubscriptionListing struct {
+	// The subscriptions in the listing.
+	Subscriptions []*UserPlan `json:"subscriptions"`
+
+	// The total number of matched subscriptions.
+	Total int64 `json:"total"`
+}
