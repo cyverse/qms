@@ -12,7 +12,7 @@ type Quota struct {
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
 
 	// The resource usage limit
-	Quota float64 `json:"quota,omitempty"`
+	Quota float64 `json:"quota"`
 
 	// The user plan ID
 	UserPlanID *string `gorm:"type:uuid;not null" json:"-"`

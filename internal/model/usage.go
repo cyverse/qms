@@ -12,7 +12,7 @@ type Usage struct {
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
 
 	// The usage amount
-	Usage float64 `gorm:"not null" json:"usage,omitempty"`
+	Usage float64 `gorm:"not null" json:"usage"`
 
 	// The subscription identifier
 	UserPlanID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
