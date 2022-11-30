@@ -44,24 +44,27 @@ func NewSubscriptionAdder(tx *gorm.DB, cfg *SubscriptionAdderConfig) (*Subscript
 
 // subscriptionError returns an error record indicating that a subscription could not be created. This is just a
 // utility function to remove some cumbersome code in AddSubscription.
-func (sa *SubscriptionAdder) subscriptionError(f string, args ...any) *model.SubscriptionResponse {
+func (sa *SubscriptionAdder) subscriptionError(username string, f string, args ...any) *model.SubscriptionResponse {
 	msg := fmt.Sprintf(f, args...)
-	return &model.SubscriptionResponse{FailureReason: &msg}
+	return &model.SubscriptionResponse{
+		UserPlan:      model.UserPlan{User: &model.User{Username: username}},
+		FailureReason: &msg,
+	}
 }
 
 // AddSubscription subscribes a user to a subscription plan.
 func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *string) *model.SubscriptionResponse {
 	if username == nil || *username == "" {
-		return sa.subscriptionError("no username provided in request")
+		return sa.subscriptionError("", "no username provided in request")
 	}
 	if planName == nil || *planName == "" {
-		return sa.subscriptionError("no plan name provided in request")
+		return sa.subscriptionError(*username, "no plan name provided in request")
 	}
 
 	// Look up the plan information.
 	plan, ok := sa.plansByName[*planName]
 	if !ok || plan == nil {
-		return sa.subscriptionError("plan does not exist: %s", *planName)
+		return sa.subscriptionError(*username, "plan does not exist: %s", *planName)
 	}
 
 	// Add some fields to the logger.
@@ -76,7 +79,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	user, err := db.GetUser(sa.cfg.Ctx, tx, *username)
 	if err != nil {
 		log.Error(err)
-		return sa.subscriptionError(err.Error())
+		return sa.subscriptionError(*username, err.Error())
 	}
 
 	// Check the current plan if we're supposed to.
@@ -84,7 +87,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		activeSubscription, err := db.GetActiveUserPlanDetails(sa.cfg.Ctx, tx, *username)
 		if err != nil {
 			log.Error(err)
-			return sa.subscriptionError(err.Error())
+			return sa.subscriptionError(*username, err.Error())
 		}
 
 		// Compare the CPU allocations to determine the plan levels to determine if the user gets a new subscription.
@@ -99,21 +102,21 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	err = db.DeactivateUserPlans(sa.cfg.Ctx, tx, *user.ID)
 	if err != nil {
 		log.Error(err)
-		return sa.subscriptionError(err.Error())
+		return sa.subscriptionError(*username, err.Error())
 	}
 
 	// Add the subscription.
 	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
 	if err != nil {
 		log.Error(err)
-		return sa.subscriptionError(err.Error())
+		return sa.subscriptionError(*username, err.Error())
 	}
 
 	// Load the subscription details.
 	sub, err = db.GetUserPlanDetails(sa.cfg.Ctx, tx, *sub.ID)
 	if err != nil {
 		log.Error(err)
-		return sa.subscriptionError(err.Error())
+		return sa.subscriptionError(*username, err.Error())
 	}
 
 	return model.SubscriptionResponseFromUserPlan(sub, true)
