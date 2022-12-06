@@ -89,10 +89,10 @@ type UserPlan struct {
 	Plan *Plan `json:"plan,omitempty"`
 
 	// The quotas associated with the subscription
-	Quotas []Quota `json:"quotas,omitempty"`
+	Quotas []Quota `json:"quotas"`
 
 	// The recorded usage amounts associated with the subscription
-	Usages []Usage `json:"usages,omitempty"`
+	Usages []Usage `json:"usages"`
 }
 
 // GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be
