@@ -41,14 +41,15 @@ func extractPlanID(ctx echo.Context) (string, error) {
 //
 // swagger:route GET /v1/plans plans listPlans
 //
-// List Plans
+// # List Plans
 //
 // Lists all the plans that are currently available.
 //
 // responses:
-//   200: plansResponse
-//   400: badRequestResponse
-//   500: internalServerErrorResponse
+//
+//	200: plansResponse
+//	400: badRequestResponse
+//	500: internalServerErrorResponse
 func (s Server) GetAllPlans(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "getting all plans"})
 
@@ -68,14 +69,15 @@ func (s Server) GetAllPlans(ctx echo.Context) error {
 //
 // swagger:route GET /plans/{plan_id} plans getPlanByID
 //
-// Get Plan Information
+// # Get Plan Information
 //
 // Returns the plan with the given identifier.
 //
 // responses:
-//   200: planResponse
-//   400: badRequestResponse
-//   500: internalServerErrorResponse
+//
+//	200: planResponse
+//	400: badRequestResponse
+//	500: internalServerErrorResponse
 func (s Server) GetPlanByID(ctx echo.Context) error {
 	var err error
 
@@ -111,15 +113,16 @@ func (s Server) GetPlanByID(ctx echo.Context) error {
 //
 // swagger:route POST /plans plans addPlan
 //
-// Add Plan
+// # Add Plan
 //
 // Adds the plan to the Plans Database.
 //
 // Responses:
-//   200: successMessageResponse
-//   400: badRequestResponse
-//   409: conflictResponse
-//   500: internalServerErrorResponse
+//
+//	200: successMessageResponse
+//	400: badRequestResponse
+//	409: conflictResponse
+//	500: internalServerErrorResponse
 func (s Server) AddPlan(ctx echo.Context) error {
 	var err error
 
@@ -180,10 +183,11 @@ func (s Server) AddPlan(ctx echo.Context) error {
 // Adds / updates quota plan defaults to a Plan.
 //
 // responses:
-//   200: planResponse
-//   400: badRequestResponse
-//   409: conflictResponse
-//   500: internalServerErrorResponse
+//
+//	200: planResponse
+//	400: badRequestResponse
+//	409: conflictResponse
+//	500: internalServerErrorResponse
 func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 	var err error
 
@@ -272,10 +276,11 @@ func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
 // Add resource quota values of a user.
 //
 // responses:
-//   200: successMessageResponse
-//   400: badRequestResponse
-//   409: conflictResponse
-//   500: internalServerErrorResponse
+//
+//	200: successMessageResponse
+//	400: badRequestResponse
+//	409: conflictResponse
+//	500: internalServerErrorResponse
 func (s Server) AddQuota(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "adding quota"})
 
@@ -286,7 +291,7 @@ func (s Server) AddQuota(ctx echo.Context) error {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
 
-	username := strings.TrimSuffix(quotaReq.ResourceName, s.UsernameSuffix)
+	username := strings.TrimSuffix(quotaReq.Username, s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
