@@ -50,9 +50,6 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Lists all of the active user plans.
 	users.GET("/all_active_users", s.GetAllActiveUserPlans)
 
-	// Updates or adds a quota (read as limit) to a user's current plan.
-	users.POST("/quota", s.AddQuota)
-
 	// Adds a new user to the database.
 	users.PUT("/:username", s.AddUser)
 

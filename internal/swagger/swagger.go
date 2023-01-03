@@ -277,13 +277,6 @@ type AddPlanQuotaDefaults struct {
 	Body controllers.PlanQuotaDefaultValues
 }
 
-type QuotaResponseWrapper struct {
-	// The quota information
-	//
-	//in: body
-	Body controllers.QuotaReq
-}
-
 // Users
 
 // User Listing
