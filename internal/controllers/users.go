@@ -98,44 +98,92 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 
 // UpdateCurrentSubscriptionQuota is the handler for updating the quota associated with a user's current
 // subscription plan.
-func (s Server) UpdateCurrentSubscriptionQuota(ctx echo.Context) error {
+func (s Server) UpdateCurrentSubscriptionQuota(c echo.Context) error {
 	log := log.WithField("context", "updating a current subscription quota")
+	ctx := c.Request().Context()
 
 	// Extract the username from the request.
-	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
+	username := strings.TrimSuffix(c.Param("username"), s.UsernameSuffix)
 	if username == "" {
-		msg := fmt.Sprintf("invalid username provided in request: '%s'", ctx.Param("username"))
+		msg := fmt.Sprintf("invalid username provided in request: '%s'", c.Param("username"))
 		log.Error(msg)
-		return model.Error(ctx, msg, http.StatusBadRequest)
+		return model.Error(c, msg, http.StatusBadRequest)
 	}
+	log = log.WithField("user", username)
 
 	// Extract the resource type name from the request.
-	resourceTypeName := ctx.Param("resource-type")
+	resourceTypeName := c.Param("resource-type")
 	if resourceTypeName == "" {
 		msg := "no resource type name provided in request"
 		log.Error(msg)
-		return model.Error(ctx, msg, http.StatusBadRequest)
+		return model.Error(c, msg, http.StatusBadRequest)
 	}
+	log = log.WithField("resource-type", resourceTypeName)
 
 	// Parse the request body.
 	var body httpmodel.QuotaValue
-	err := ctx.Bind(&body)
+	err := c.Bind(&body)
 	if err != nil {
 		msg := fmt.Sprintf("invalid request body: %s", err.Error())
 		log.Error(msg)
-		return model.Error(ctx, msg, http.StatusBadRequest)
+		return model.Error(c, msg, http.StatusBadRequest)
 	}
-	if err = ctx.Validate(&body); err != nil {
+	if err = c.Validate(&body); err != nil {
 		msg := fmt.Sprintf("invalid request body: %s", err.Error())
 		log.Error(msg)
-		return model.Error(ctx, msg, http.StatusBadRequest)
+		return model.Error(c, msg, http.StatusBadRequest)
 	}
 
 	// Start a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		// Look up the resource type.
+		resourceType, err := db.GetResourceTypeByName(ctx, tx, resourceTypeName)
+		if err != nil {
+			log.Error(err)
+			return model.Error(c, err.Error(), http.StatusInternalServerError)
+		}
+		if resourceType == nil {
+			msg := fmt.Sprintf("resource type '%s' not found", resourceTypeName)
+			log.Error(msg)
+			return model.Error(c, msg, http.StatusBadRequest)
+		}
+
+		// Determine whether or not the user has an active subscription.
+		hasActiveSubscription, err := db.HasActiveUserPlan(ctx, tx, username)
+		if err != nil {
+			log.Error(err)
+			return model.Error(c, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Load the user's current subscription, creating a new subscription if necessary.
+		subcription, err := db.GetActiveUserPlan(ctx, tx, username)
+		if err != nil {
+			log.Error(err)
+			return model.Error(c, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Insert or update the quota.
+		quota := &model.Quota{
+			UserPlanID:     subcription.ID,
+			Quota:          body.Quota,
+			ResourceTypeID: resourceType.ID,
+		}
+		err = db.UpsertQuota(ctx, tx, quota)
+		if err != nil {
+			log.Error(err)
+			return model.Error(c, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Load the subscription details.
+		details, err := db.GetUserPlanDetails(ctx, tx, *subcription.ID)
+		if err != nil {
+			log.Error(err)
+			return model.Error(c, err.Error(), http.StatusInternalServerError)
+		}
 
 		// Return the response.
-		return model.Success(ctx, &model.SubscriptionResponse{}, http.StatusOK)
+		responseBody := model.SubscriptionResponseFromUserPlan(details, !hasActiveSubscription)
+		return model.Success(c, responseBody, http.StatusOK)
 	})
 }
 
