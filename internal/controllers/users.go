@@ -10,6 +10,7 @@ import (
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/QMS/internal/db"
+	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -80,6 +81,61 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 
 		// Return the user plan.
 		return model.Success(ctx, userPlan, http.StatusOK)
+	})
+}
+
+// swagger:route POST /v1/users/:username/plan/:resource-type/quota users updateCurrentSubscriptionQuota
+//
+// Update Current Subscription Plan Quota
+//
+// Updates the current quota for the given username and resource type. If the user doesn't have an active
+// subscription then a new subscription for the default subscription plan type will be created.
+//
+// responses:
+//   200: subscriptionsResponse
+//   400: badRequestResponse
+//   500: internalServerErrorResponse
+
+// UpdateCurrentSubscriptionQuota is the handler for updating the quota associated with a user's current
+// subscription plan.
+func (s Server) UpdateCurrentSubscriptionQuota(ctx echo.Context) error {
+	log := log.WithField("context", "updating a current subscription quota")
+
+	// Extract the username from the request.
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
+	if username == "" {
+		msg := fmt.Sprintf("invalid username provided in request: '%s'", ctx.Param("username"))
+		log.Error(msg)
+		return model.Error(ctx, msg, http.StatusBadRequest)
+	}
+
+	// Extract the resource type name from the request.
+	resourceTypeName := ctx.Param("resource-type")
+	if resourceTypeName == "" {
+		msg := "no resource type name provided in request"
+		log.Error(msg)
+		return model.Error(ctx, msg, http.StatusBadRequest)
+	}
+
+	// Parse the request body.
+	var body httpmodel.QuotaValue
+	err := ctx.Bind(&body)
+	if err != nil {
+		msg := fmt.Sprintf("invalid request body: %s", err.Error())
+		log.Error(msg)
+		return model.Error(ctx, msg, http.StatusBadRequest)
+	}
+	if err = ctx.Validate(&body); err != nil {
+		msg := fmt.Sprintf("invalid request body: %s", err.Error())
+		log.Error(msg)
+		return model.Error(ctx, msg, http.StatusBadRequest)
+	}
+
+	// Start a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+
+		// Return the response.
+		return model.Success(ctx, &model.SubscriptionResponse{}, http.StatusOK)
 	})
 }
 
