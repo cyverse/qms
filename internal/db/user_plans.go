@@ -9,6 +9,7 @@ import (
 	"github.com/cyverse/QMS/internal/model"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan. This function assumes that the
@@ -100,6 +101,30 @@ func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*mode
 	}
 
 	return &userPlan, nil
+}
+
+// HasActiveUserPlan determines whether or not the user currently has an active user plan.
+func HasActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (bool, error) {
+	wrapMsg := "unable to determine whether the user has an active user plan"
+
+	// Determine whether or not the user has an active subscription.
+	var count int64
+	err := db.
+		WithContext(ctx).
+		Table("user_plans").
+		Joins("JOIN users ON user_plans.user_id=users.id").
+		Where("users.username=?", username).
+		Where(
+			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
+				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+		).
+		Count(&count).
+		Error
+	if err != nil {
+		return false, errors.Wrap(err, wrapMsg)
+	}
+
+	return count > 0, nil
 }
 
 // GetUserPlanDetails loads the details for the user plan with the given ID from the database. This function assumes
@@ -231,6 +256,33 @@ func DeactivateUserPlans(ctx context.Context, db *gorm.DB, userID string) error 
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
+	return nil
+}
+
+// UpsertQuota updates a quota if a corresponding quota exists in the database. If a corresponding quota does not
+// exist, a new quota will be inserted.
+func UpsertQuota(ctx context.Context, db *gorm.DB, quota *model.Quota) error {
+	wrapMsg := "unable to insert or update the quota"
+
+	// Either insert or update the quota.
+	err := db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{
+					Name: "user_plan_id",
+				},
+				{
+					Name: "resource_type_id",
+				},
+			},
+			DoUpdates: clause.AssignmentColumns([]string{"quota"}),
+		}).
+		Create(quota).
+		Error
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
 	return nil
 }
 

@@ -3,12 +3,23 @@ package server
 import (
 	"github.com/cyverse-de/echo-middleware/v2/redoc"
 	"github.com/cyverse/QMS/internal/controllers"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 	echolog "github.com/spirosoik/echo-logrus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
+
+// CustomValidator represents a validator that Echo can use to check incoming requests.
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
+// Validate performs validation for an incoming request.
+func (cv CustomValidator) Validate(i interface{}) error {
+	return cv.validator.Struct(i)
+}
 
 func InitRouter() *echo.Echo {
 	log := log.WithFields(logrus.Fields{"context": "router"})
@@ -26,6 +37,9 @@ func InitRouter() *echo.Echo {
 	e.Use(middleware.Recover())
 	e.Use(redoc.Serve(redoc.Opts{Title: "CyVerse Quota Management System"}))
 
+	// Register a custom validator.
+	e.Validator = &CustomValidator{validator: validator.New()}
+
 	return e
 }
 
@@ -36,14 +50,14 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Lists all of the active user plans.
 	users.GET("/all_active_users", s.GetAllActiveUserPlans)
 
-	// Updates or adds a quota (read as limit) to a user's current plan.
-	users.POST("/quota", s.AddQuota)
-
 	// Adds a new user to the database.
 	users.PUT("/:username", s.AddUser)
 
-	// Gets a users's current plan details
+	// Gets a user's current plan details
 	users.GET("/:username/plan", s.GetUserPlanDetails)
+
+	// Updates a quota in the user's current subscription plan.
+	users.POST("/:username/plan/:resource-type/quota", s.UpdateCurrentSubscriptionQuota)
 
 	// GET /:username/resources/overages returns summaries of any usages that exceed the quota for the corresponding resource.
 	users.GET("/:username/resources/overages", s.GetUserOverages)

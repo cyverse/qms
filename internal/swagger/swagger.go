@@ -125,6 +125,25 @@ type SuccessMessageResponseWrapoper struct {
 	}
 }
 
+// Parameters for the endpoint used to update a user's current quota value for a specific resource type.
+//
+// swagger:parameters updateCurrentSubscriptionQuota
+type UpdateCurrentSubscriptionQuotaParameters struct {
+
+	// The username of the user whose subscription should be updated.
+	//
+	// in: query
+	Username string `json:"username"`
+
+	// The name of the resource type to update the quota for.
+	//
+	// in: query
+	ResourceTypeName string `json:"resource-type"`
+
+	// in: body
+	Body httpmodel.QuotaValue
+}
+
 // Parameters for the endpoint used to add multiple subscriptions.
 //
 // swagger:parameters addSubscriptions
@@ -256,13 +275,6 @@ type AddPlanQuotaDefaults struct {
 	//
 	// in: body
 	Body controllers.PlanQuotaDefaultValues
-}
-
-type QuotaResponseWrapper struct {
-	// The quota information
-	//
-	//in: body
-	Body controllers.QuotaReq
 }
 
 // Users
