@@ -157,8 +157,8 @@ type UserPlanListingParams struct {
 	Search    string
 }
 
-// ListUserPlans lists subscriptions for multiple users.
-func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, int64, error) {
+// ListSubscriptions lists subscriptions for multiple users.
+func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, int64, error) {
 	var userPlans []*model.UserPlan
 	var count int64
 
@@ -241,9 +241,9 @@ func GetActiveUserPlanDetails(ctx context.Context, db *gorm.DB, username string)
 	return GetUserPlanDetails(ctx, db, *userPlan.ID)
 }
 
-// DeactivateUserPlans marks all currently active plans for a user as expired. This operation is used when a user
+// DeactivateSubscriptions marks all currently active plans for a user as expired. This operation is used when a user
 // selects a new plan. This function does not support user plans that become active in the future at this time.
-func DeactivateUserPlans(ctx context.Context, db *gorm.DB, userID string) error {
+func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string) error {
 	wrapMsg := "unable to deactivate active plans for user"
 	// Mark currently active user plans as expired.
 	err := db.WithContext(ctx).

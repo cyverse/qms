@@ -99,7 +99,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	}
 
 	// Deactivate all active subscriptions for the user.
-	err = db.DeactivateUserPlans(sa.cfg.Ctx, tx, *user.ID)
+	err = db.DeactivateSubscriptions(sa.cfg.Ctx, tx, *user.ID)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())
@@ -255,7 +255,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 			SortDir:   sortDir,
 			Search:    search,
 		}
-		subscriptions, count, err = db.ListUserPlans(context, tx, params)
+		subscriptions, count, err = db.ListSubscriptions(context, tx, params)
 		return err
 	})
 	if err != nil {

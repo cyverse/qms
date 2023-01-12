@@ -261,12 +261,12 @@ func fixUsername(ctx context.Context, tx *gorm.DB, newUsername string, usernameS
 
 	// Deactivate all plans for both the old username and the new username.
 	if oldUser != nil {
-		err = db.DeactivateUserPlans(ctx, tx, *oldUser.ID)
+		err = db.DeactivateSubscriptions(ctx, tx, *oldUser.ID)
 		if err != nil {
 			return errors.Wrapf(err, "unable to deactivate existing plans for %s", oldUser.Username)
 		}
 	}
-	err = db.DeactivateUserPlans(ctx, tx, *newUser.ID)
+	err = db.DeactivateSubscriptions(ctx, tx, *newUser.ID)
 	if err != nil {
 		return errors.Wrapf(err, "unable to deactivate existing plans for %s", newUser.Username)
 	}

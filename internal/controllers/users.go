@@ -361,7 +361,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 		log.Debug("verified that plan exists in database")
 
 		// Deactivate all active plans for the user.
-		err = db.DeactivateUserPlans(context, tx, *user.ID)
+		err = db.DeactivateSubscriptions(context, tx, *user.ID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}

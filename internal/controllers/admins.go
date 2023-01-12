@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
+func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "getting all active user plans"})
 
 	context := ctx.Request().Context()
