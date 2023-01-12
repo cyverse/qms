@@ -47,7 +47,7 @@ func NewSubscriptionAdder(tx *gorm.DB, cfg *SubscriptionAdderConfig) (*Subscript
 func (sa *SubscriptionAdder) subscriptionError(username string, f string, args ...any) *model.SubscriptionResponse {
 	msg := fmt.Sprintf(f, args...)
 	return &model.SubscriptionResponse{
-		UserPlan:      model.UserPlan{User: &model.User{Username: username}},
+		Subscription:  model.Subscription{User: &model.User{Username: username}},
 		FailureReason: &msg,
 	}
 }
@@ -245,7 +245,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 	}
 
 	// Obtain the subscription listing.
-	var subscriptions []*model.UserPlan
+	var subscriptions []*model.Subscription
 	var count int64
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		params := &db.UserPlanListingParams{

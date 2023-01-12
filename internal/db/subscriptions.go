@@ -26,14 +26,14 @@ func QuotasFromPlan(plan *model.Plan) []model.Quota {
 }
 
 // SubscribeUserToPlan subscribes the given user to the given plan.
-func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan) (*model.UserPlan, error) {
+func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan) (*model.Subscription, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
 
 	// Define the user plan.
 	effectiveStartDate := time.Now()
 	effectiveEndDate := effectiveStartDate.AddDate(1, 0, 0)
-	userPlan := model.UserPlan{
+	userPlan := model.Subscription{
 		EffectiveStartDate: &effectiveStartDate,
 		EffectiveEndDate:   &effectiveEndDate,
 		UserID:             user.ID,
@@ -49,7 +49,7 @@ func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, pla
 }
 
 // SubscribeUserToDefaultPlan adds the default user plan to the given user.
-func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
+func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	wrapMsg := "unable to add the default user plan"
 	var err error
 
@@ -73,12 +73,12 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 // date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active
 // user plans exist for the user then a new one for the basic plan is created.
-func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
+func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	wrapMsg := "unable to get the active user plan"
 	var err error
 
 	// Look up the currently active user plan, adding a new one if it doesn't exist already.
-	var userPlan model.UserPlan
+	var userPlan model.Subscription
 	err = db.
 		WithContext(ctx).
 		Table("subscriptions").
@@ -129,8 +129,8 @@ func HasActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (bool,
 
 // GetUserPlanDetails loads the details for the user plan with the given ID from the database. This function assumes
 // that the user plan exists.
-func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*model.UserPlan, error) {
-	var userPlan *model.UserPlan
+func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*model.Subscription, error) {
+	var userPlan *model.Subscription
 
 	err := db.WithContext(ctx).
 		Preload("User").
@@ -158,8 +158,8 @@ type UserPlanListingParams struct {
 }
 
 // ListSubscriptions lists subscriptions for multiple users.
-func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.UserPlan, int64, error) {
-	var userPlans []*model.UserPlan
+func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.Subscription, int64, error) {
+	var userPlans []*model.Subscription
 	var count int64
 
 	// Determine the offset and limit to use.
@@ -228,7 +228,7 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListing
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user
 // plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveUserPlan except
 // that it also loads all of the user plan details from the database.
-func GetActiveUserPlanDetails(ctx context.Context, db *gorm.DB, username string) (*model.UserPlan, error) {
+func GetActiveUserPlanDetails(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	var err error
 
 	// Get the current user plan.
@@ -247,7 +247,7 @@ func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string) er
 	wrapMsg := "unable to deactivate active plans for user"
 	// Mark currently active user plans as expired.
 	err := db.WithContext(ctx).
-		Model(&model.UserPlan{}).
+		Model(&model.Subscription{}).
 		Select("EffectiveEndDate").
 		Where("user_id = ?", userID).
 		Where("effective_end_date > CURRENT_TIMESTAMP").

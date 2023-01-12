@@ -29,7 +29,7 @@ type SubscriptionRequests struct {
 //
 // swagger: model
 type SubscriptionResponse struct {
-	UserPlan
+	Subscription
 
 	// The reason the subscription couldn't be created if an error occurred.
 	FailureReason *string `json:"failure_reason,omitempty"`
@@ -39,9 +39,9 @@ type SubscriptionResponse struct {
 }
 
 // SubscriptionResponseFromUserPlan converts a user plan to a subscription response.
-func SubscriptionResponseFromUserPlan(userPlan *UserPlan, newSubscription bool) *SubscriptionResponse {
+func SubscriptionResponseFromUserPlan(userPlan *Subscription, newSubscription bool) *SubscriptionResponse {
 	var resp SubscriptionResponse
-	resp.UserPlan = *userPlan
+	resp.Subscription = *userPlan
 	resp.NewSubscription = newSubscription
 	return &resp
 }
@@ -51,7 +51,7 @@ func SubscriptionResponseFromUserPlan(userPlan *UserPlan, newSubscription bool) 
 // swagger: model
 type SubscriptionListing struct {
 	// The subscriptions in the listing.
-	Subscriptions []*UserPlan `json:"subscriptions"`
+	Subscriptions []*Subscription `json:"subscriptions"`
 
 	// The total number of matched subscriptions.
 	Total int64 `json:"total"`

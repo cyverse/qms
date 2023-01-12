@@ -14,7 +14,7 @@ func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	var userPlans []model.UserPlan
+	var userPlans []model.Subscription
 	err := s.GORMDB.WithContext(context).
 		Preload("User").
 		Preload("Plan").

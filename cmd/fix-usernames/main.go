@@ -67,8 +67,8 @@ func listUsernames(ctx context.Context, tx *gorm.DB) ([]string, error) {
 
 // loadCurrentSubscription loads the current subscription for a single user. It does not create a new subscription if
 // the user doesn't currently have one.
-func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User) (*model.UserPlan, error) {
-	var subscriptions []model.UserPlan
+func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User) (*model.Subscription, error) {
+	var subscriptions []model.Subscription
 
 	// Look up the plan.
 	err := tx.WithContext(ctx).
@@ -90,7 +90,7 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 		Find(&subscriptions).
 		Error
 
-	var plan *model.UserPlan
+	var plan *model.Subscription
 	if len(subscriptions) > 0 {
 		plan = &subscriptions[0]
 	}
@@ -98,8 +98,8 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 }
 
 // LoadSubscription loads the subscription details for the given subscription ID.
-func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID string) (*model.UserPlan, error) {
-	var subscription *model.UserPlan
+func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID string) (*model.Subscription, error) {
+	var subscription *model.Subscription
 
 	err := tx.WithContext(ctx).
 		Preload("User").
@@ -177,7 +177,7 @@ func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *
 
 // restorePreviousQuotas ensures that the resource usage limits for the new subscription are at least as large as the
 // resource usage limits for the old subscription.
-func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, newSubscription *model.UserPlan) error {
+func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, newSubscription *model.Subscription) error {
 	for _, quota := range oldSubscription.Quotas {
 		newQuotaValue := findQuotaValue(newSubscription.Quotas, quota.ResourceType.Name)
 		if newQuotaValue < quota.Quota {
@@ -193,7 +193,7 @@ func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, ne
 // addUsageToSubscription adds a usage record to the new subscription. This function is only intended to be used to
 // add usage records to a brand new subscription, so it assumes that there aren't any usages associated with the
 // subscription yet.
-func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.UserPlan, usage *model.Usage) error {
+func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.Subscription, usage *model.Usage) error {
 	newUsage := &model.Usage{
 		ResourceTypeID: usage.ResourceTypeID,
 		UserPlanID:     subscription.ID,
@@ -272,7 +272,7 @@ func fixUsername(ctx context.Context, tx *gorm.DB, newUsername string, usernameS
 	}
 
 	// Create the new subscription.
-	var newSubscription *model.UserPlan
+	var newSubscription *model.Subscription
 	if oldSubscription == nil {
 		newSubscription, err = db.SubscribeUserToDefaultPlan(ctx, tx, newUser.Username)
 		if err != nil {
