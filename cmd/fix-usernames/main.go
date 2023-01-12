@@ -82,10 +82,10 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 		Preload("Usages.ResourceType").
 		Where("user_id = ?", user.ID).
 		Where(
-			tx.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			tx.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
-		Order("user_plans.effective_start_date desc").
+		Order("subscriptions.effective_start_date desc").
 		Limit(1).
 		Find(&subscriptions).
 		Error
@@ -124,8 +124,8 @@ func loadMostRecentDataUsage(ctx context.Context, tx *gorm.DB, oldUsername, newU
 
 	// Look up the usages.
 	err := tx.WithContext(ctx).
-		Joins("JOIN user_plans ON usages.user_plan_id = user_plans.id").
-		Joins("JOIN users ON user_plans.user_id = users.id").
+		Joins("JOIN subscriptions ON usages.user_plan_id = subscriptions.id").
+		Joins("JOIN users ON subscriptions.user_id = users.id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username IN ?", []string{oldUsername, newUsername}).
 		Where("resource_types.name = ?", "data.size").

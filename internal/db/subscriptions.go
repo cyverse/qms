@@ -81,14 +81,14 @@ func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*mode
 	var userPlan model.UserPlan
 	err = db.
 		WithContext(ctx).
-		Table("user_plans").
-		Joins("JOIN users ON user_plans.user_id=users.id").
+		Table("subscriptions").
+		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Where("users.username=?", username).
 		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
-		Order("user_plans.effective_start_date desc").
+		Order("subscriptions.effective_start_date desc").
 		First(&userPlan).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errors.Wrap(err, wrapMsg)
@@ -111,12 +111,12 @@ func HasActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (bool,
 	var count int64
 	err := db.
 		WithContext(ctx).
-		Table("user_plans").
-		Joins("JOIN users ON user_plans.user_id=users.id").
+		Table("subscriptions").
+		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Where("users.username=?", username).
 		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
 		Count(&count).
 		Error
@@ -185,7 +185,7 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 
 	// Build the base query.
 	baseQuery := db.WithContext(ctx).
-		Joins("JOIN users ON user_plans.user_id=users.id").
+		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
 		Preload("Plan.PlanQuotaDefaults").
@@ -195,8 +195,8 @@ func ListUserPlans(ctx context.Context, db *gorm.DB, params *UserPlanListingPara
 		Preload("Usages").
 		Preload("Usages.ResourceType").
 		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		)
 
 	// Add the search clause if we're supposed to.
@@ -292,24 +292,24 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[s
 	retval := make([]map[string]interface{}, 0)
 
 	err = db.WithContext(ctx).
-		Table("user_plans").
+		Table("subscriptions").
 		Select(
-			"user_plans.id as user_plan_id",
+			"subscriptions.id as user_plan_id",
 			"users.username",
 			"plans.name as plan_name",
 			"resource_types.name as resource_type_name",
 			"quotas.quota",
 			"usages.usage",
 		).
-		Joins("JOIN users ON user_plans.user_id = users.id").
-		Joins("JOIN plans ON user_plans.plan_id = plans.id").
-		Joins("JOIN quotas ON user_plans.id = quotas.user_plan_id").
-		Joins("JOIN usages ON user_plans.id = usages.user_plan_id").
+		Joins("JOIN users ON subscriptions.user_id = users.id").
+		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
+		Joins("JOIN quotas ON subscriptions.id = quotas.user_plan_id").
+		Joins("JOIN usages ON subscriptions.id = usages.user_plan_id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username = ?", username).
 		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
 		Where("usages.resource_type_id = quotas.resource_type_id").
 		Where("usages.usage >= quotas.quota").
@@ -337,25 +337,25 @@ func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName s
 	retval := make(map[string]interface{})
 
 	err = db.WithContext(ctx).
-		Table("user_plans").
+		Table("subscriptions").
 		Select(
-			"user_plans.id as user_plan_id",
+			"subscriptions.id as user_plan_id",
 			"users.username",
 			"plans.name as plan_name",
 			"resource_types.name as resource_type_name",
 			"quotas.quota",
 			"usages.usage",
 		).
-		Joins("JOIN users ON user_plans.user_id = users.id").
-		Joins("JOIN plans ON user_plans.plan_id = plans.id").
-		Joins("JOIN quotas ON user_plans.id = quotas.user_plan_id").
-		Joins("JOIN usages ON user_plans.id = usages.user_plan_id").
+		Joins("JOIN users ON subscriptions.user_id = users.id").
+		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
+		Joins("JOIN quotas ON subscriptions.id = quotas.user_plan_id").
+		Joins("JOIN usages ON subscriptions.id = usages.user_plan_id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username = ?", username).
 		Where("resource_types.name = ?", resourceName).
 		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
 		Where("usages.resource_type_id = quotas.resource_type_id").
 		Where("usages.usage >= quotas.quota").

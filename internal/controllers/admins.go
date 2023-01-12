@@ -26,8 +26,8 @@ func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
 		Preload("Usages.ResourceType").
 		Where(
 			s.GORMDB.WithContext(context).
-				Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL")).
+				Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL")).
 		Find(&userPlans).Error
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)

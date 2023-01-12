@@ -234,8 +234,8 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 	// Determine the sort field to pass to the database.
 	dbSortFieldFor := map[string]string{
 		"username":   "users.username",
-		"start-date": "user_plans.effective_start_date",
-		"end-date":   "user_plans.effective_end_date",
+		"start-date": "subscriptions.effective_start_date",
+		"end-date":   "subscriptions.effective_end_date",
 	}
 	dbSortField, ok := dbSortFieldFor[sortField]
 	if !ok {
