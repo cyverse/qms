@@ -124,7 +124,7 @@ func loadMostRecentDataUsage(ctx context.Context, tx *gorm.DB, oldUsername, newU
 
 	// Look up the usages.
 	err := tx.WithContext(ctx).
-		Joins("JOIN subscriptions ON usages.user_plan_id = subscriptions.id").
+		Joins("JOIN subscriptions ON usages.subscription_id = subscriptions.id").
 		Joins("JOIN users ON subscriptions.user_id = users.id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username IN ?", []string{oldUsername, newUsername}).
@@ -163,7 +163,7 @@ func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{
-					Name: "user_plan_id",
+					Name: "subscription_id",
 				},
 				{
 					Name: "resource_type_id",

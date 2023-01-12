@@ -269,7 +269,7 @@ func UpsertQuota(ctx context.Context, db *gorm.DB, quota *model.Quota) error {
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{
-					Name: "user_plan_id",
+					Name: "subscription_id",
 				},
 				{
 					Name: "resource_type_id",
@@ -294,7 +294,7 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[s
 	err = db.WithContext(ctx).
 		Table("subscriptions").
 		Select(
-			"subscriptions.id as user_plan_id",
+			"subscriptions.id as subscription_id",
 			"users.username",
 			"plans.name as plan_name",
 			"resource_types.name as resource_type_name",
@@ -303,8 +303,8 @@ func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[s
 		).
 		Joins("JOIN users ON subscriptions.user_id = users.id").
 		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
-		Joins("JOIN quotas ON subscriptions.id = quotas.user_plan_id").
-		Joins("JOIN usages ON subscriptions.id = usages.user_plan_id").
+		Joins("JOIN quotas ON subscriptions.id = quotas.subscription_id").
+		Joins("JOIN usages ON subscriptions.id = usages.subscription_id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username = ?", username).
 		Where(
@@ -339,7 +339,7 @@ func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName s
 	err = db.WithContext(ctx).
 		Table("subscriptions").
 		Select(
-			"subscriptions.id as user_plan_id",
+			"subscriptions.id as subscription_id",
 			"users.username",
 			"plans.name as plan_name",
 			"resource_types.name as resource_type_name",
@@ -348,8 +348,8 @@ func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName s
 		).
 		Joins("JOIN users ON subscriptions.user_id = users.id").
 		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
-		Joins("JOIN quotas ON subscriptions.id = quotas.user_plan_id").
-		Joins("JOIN usages ON subscriptions.id = usages.user_plan_id").
+		Joins("JOIN quotas ON subscriptions.id = quotas.subscription_id").
+		Joins("JOIN usages ON subscriptions.id = usages.subscription_id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username = ?", username).
 		Where("resource_types.name = ?", resourceName).
