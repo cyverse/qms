@@ -54,7 +54,7 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	users.PUT("/:username", s.AddUser)
 
 	// Gets a user's current plan details
-	users.GET("/:username/plan", s.GetUserPlanDetails)
+	users.GET("/:username/plan", s.GetSubscriptionDetails)
 
 	// Updates a quota in the user's current subscription plan.
 	users.POST("/:username/plan/:resource-type/quota", s.UpdateCurrentSubscriptionQuota)
@@ -66,7 +66,7 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	users.GET("/:username/resources/:resource-name/in-overage", s.InOverage)
 
 	// Changes the user's current plan to one corresponding to plan name.
-	users.PUT("/:username/:plan_name", s.UpdateUserPlan)
+	users.PUT("/:username/:plan_name", s.UpdateSubscription)
 }
 
 func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {

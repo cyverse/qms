@@ -155,7 +155,7 @@ func findQuotaValue(quotas []model.Quota, resourceTypeName string) float64 {
 // setQuota either adds a quota to a subscription or updates a quota in a subscription.
 func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *string, quotaValue float64) error {
 	quota := model.Quota{
-		UserPlanID:     subscriptionID,
+		SubscriptionID: subscriptionID,
 		ResourceTypeID: resourceTypeID,
 		Quota:          quotaValue,
 	}
@@ -196,7 +196,7 @@ func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, ne
 func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.Subscription, usage *model.Usage) error {
 	newUsage := &model.Usage{
 		ResourceTypeID: usage.ResourceTypeID,
-		UserPlanID:     subscription.ID,
+		SubscriptionID: subscription.ID,
 		Usage:          usage.Usage,
 	}
 	return tx.WithContext(ctx).Create(newUsage).Error

@@ -69,11 +69,11 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 	return SubscribeUserToPlan(ctx, db, user, plan)
 }
 
-// GetActiveUserPlan retrieves the user plan record that is currently active for the user. The effective start
+// GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start
 // date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active
 // user plans exist for the user then a new one for the basic plan is created.
-func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
+func GetActiveSubscription(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	wrapMsg := "unable to get the active user plan"
 	var err error
 
@@ -103,8 +103,8 @@ func GetActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (*mode
 	return &userPlan, nil
 }
 
-// HasActiveUserPlan determines whether or not the user currently has an active user plan.
-func HasActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (bool, error) {
+// HasActiveSubscription determines whether or not the user currently has an active user plan.
+func HasActiveSubscription(ctx context.Context, db *gorm.DB, username string) (bool, error) {
 	wrapMsg := "unable to determine whether the user has an active user plan"
 
 	// Determine whether or not the user has an active subscription.
@@ -127,9 +127,9 @@ func HasActiveUserPlan(ctx context.Context, db *gorm.DB, username string) (bool,
 	return count > 0, nil
 }
 
-// GetUserPlanDetails loads the details for the user plan with the given ID from the database. This function assumes
+// GetSubscriptionDetails loads the details for the user plan with the given ID from the database. This function assumes
 // that the user plan exists.
-func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*model.Subscription, error) {
+func GetSubscriptionDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*model.Subscription, error) {
 	var userPlan *model.Subscription
 
 	err := db.WithContext(ctx).
@@ -148,8 +148,8 @@ func GetUserPlanDetails(ctx context.Context, db *gorm.DB, userPlanID string) (*m
 	return userPlan, err
 }
 
-// UserPlanListingParams represents the parameters that can be used to customize a user plan listing.
-type UserPlanListingParams struct {
+// SubscriptionListingParams represents the parameters that can be used to customize a user plan listing.
+type SubscriptionListingParams struct {
 	Offset    int
 	Limit     int
 	SortField string
@@ -158,7 +158,7 @@ type UserPlanListingParams struct {
 }
 
 // ListSubscriptions lists subscriptions for multiple users.
-func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListingParams) ([]*model.Subscription, int64, error) {
+func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionListingParams) ([]*model.Subscription, int64, error) {
 	var userPlans []*model.Subscription
 	var count int64
 
@@ -223,22 +223,22 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *UserPlanListing
 	return userPlans, count, err
 }
 
-// GetActiveUserPlanDetails retrieves the user plan information that is currently active for the user. The effective
+// GetActiveSubscriptionDetails retrieves the user plan information that is currently active for the user. The effective
 // start date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user
-// plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveUserPlan except
+// plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveSubscription except
 // that it also loads all of the user plan details from the database.
-func GetActiveUserPlanDetails(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
+func GetActiveSubscriptionDetails(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	var err error
 
 	// Get the current user plan.
-	userPlan, err := GetActiveUserPlan(ctx, db, username)
+	userPlan, err := GetActiveSubscription(ctx, db, username)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load the user plan details.
-	return GetUserPlanDetails(ctx, db, *userPlan.ID)
+	return GetSubscriptionDetails(ctx, db, *userPlan.ID)
 }
 
 // DeactivateSubscriptions marks all currently active plans for a user as expired. This operation is used when a user

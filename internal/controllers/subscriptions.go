@@ -84,7 +84,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 
 	// Check the current plan if we're supposed to.
 	if !sa.cfg.Force {
-		activeSubscription, err := db.GetActiveUserPlanDetails(sa.cfg.Ctx, tx, *username)
+		activeSubscription, err := db.GetActiveSubscriptionDetails(sa.cfg.Ctx, tx, *username)
 		if err != nil {
 			log.Error(err)
 			return sa.subscriptionError(*username, err.Error())
@@ -94,7 +94,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		activeCPUAllocation := activeSubscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
 		newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
 		if newCPUAllocation <= activeCPUAllocation {
-			return model.SubscriptionResponseFromUserPlan(activeSubscription, false)
+			return model.SubscriptionResponseFromSubscription(activeSubscription, false)
 		}
 	}
 
@@ -113,13 +113,13 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	}
 
 	// Load the subscription details.
-	sub, err = db.GetUserPlanDetails(sa.cfg.Ctx, tx, *sub.ID)
+	sub, err = db.GetSubscriptionDetails(sa.cfg.Ctx, tx, *sub.ID)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())
 	}
 
-	return model.SubscriptionResponseFromUserPlan(sub, true)
+	return model.SubscriptionResponseFromSubscription(sub, true)
 }
 
 // AddSubscriptions creates the subscriptions described in the request body.
@@ -248,7 +248,7 @@ func (s Server) ListSubscriptions(ctx echo.Context) error {
 	var subscriptions []*model.Subscription
 	var count int64
 	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
-		params := &db.UserPlanListingParams{
+		params := &db.SubscriptionListingParams{
 			Offset:    int(offset),
 			Limit:     int(limit),
 			SortField: dbSortField,

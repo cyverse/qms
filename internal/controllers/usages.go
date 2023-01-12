@@ -76,7 +76,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlanDetails(ctx, tx, username)
+		userPlan, err := db.GetActiveSubscriptionDetails(ctx, tx, username)
 		if err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 		// Update the usage.
 		newUsage := &model.Usage{
-			UserPlanID:     userPlan.ID,
+			SubscriptionID: userPlan.ID,
 			ResourceTypeID: resourceType.ID,
 			Usage:          newUsageValue,
 		}
@@ -210,7 +210,7 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 
 	log = log.WithFields(logrus.Fields{"user": username})
 
-	userPlan, err := db.GetActiveUserPlanDetails(context, s.GORMDB, username)
+	userPlan, err := db.GetActiveSubscriptionDetails(context, s.GORMDB, username)
 	if err != nil {
 		sCode := httpStatusCode(err)
 		log.Error(err)

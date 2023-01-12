@@ -38,8 +38,8 @@ type SubscriptionResponse struct {
 	NewSubscription bool `json:"new_subscription"`
 }
 
-// SubscriptionResponseFromUserPlan converts a user plan to a subscription response.
-func SubscriptionResponseFromUserPlan(userPlan *Subscription, newSubscription bool) *SubscriptionResponse {
+// SubscriptionResponseFromSubscription converts a user plan to a subscription response.
+func SubscriptionResponseFromSubscription(userPlan *Subscription, newSubscription bool) *SubscriptionResponse {
 	var resp SubscriptionResponse
 	resp.Subscription = *userPlan
 	resp.NewSubscription = newSubscription

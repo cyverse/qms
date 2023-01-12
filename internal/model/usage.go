@@ -15,7 +15,7 @@ type Usage struct {
 	Usage float64 `gorm:"not null" json:"usage"`
 
 	// The subscription identifier
-	UserPlanID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
+	SubscriptionID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
 
 	// The resource type identifier
 	ResourceTypeID *string `gorm:"type:uuid;not null;index:usage_userplan_resourcetype,unique" json:"-"`
