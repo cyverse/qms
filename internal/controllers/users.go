@@ -73,14 +73,14 @@ func (s Server) GetSubscriptionDetails(ctx echo.Context) error {
 		log.Debugf("found user %s in db", user.Username)
 
 		// Look up or create the user plan.
-		userPlan, err := db.GetActiveSubscriptionDetails(context, tx, user.Username)
+		subscription, err := db.GetActiveSubscriptionDetails(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-		log.Debugf("user plan name is %s", userPlan.Plan.Name)
+		log.Debugf("user plan name is %s", subscription.Plan.Name)
 
 		// Return the user plan.
-		return model.Success(ctx, userPlan, http.StatusOK)
+		return model.Success(ctx, subscription, http.StatusOK)
 	})
 }
 

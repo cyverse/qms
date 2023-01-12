@@ -39,9 +39,9 @@ type SubscriptionResponse struct {
 }
 
 // SubscriptionResponseFromSubscription converts a user plan to a subscription response.
-func SubscriptionResponseFromSubscription(userPlan *Subscription, newSubscription bool) *SubscriptionResponse {
+func SubscriptionResponseFromSubscription(subscription *Subscription, newSubscription bool) *SubscriptionResponse {
 	var resp SubscriptionResponse
-	resp.Subscription = *userPlan
+	resp.Subscription = *subscription
 	resp.NewSubscription = newSubscription
 	return &resp
 }

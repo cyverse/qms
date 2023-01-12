@@ -14,7 +14,7 @@ func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 
 	context := ctx.Request().Context()
 
-	var userPlans []model.Subscription
+	var subscriptions []model.Subscription
 	err := s.GORMDB.WithContext(context).
 		Preload("User").
 		Preload("Plan").
@@ -28,12 +28,12 @@ func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 			s.GORMDB.WithContext(context).
 				Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
 				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL")).
-		Find(&userPlans).Error
+		Find(&subscriptions).Error
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 
 	log.Debug("got user plans from the database")
 
-	return model.Success(ctx, userPlans, http.StatusOK)
+	return model.Success(ctx, subscriptions, http.StatusOK)
 }
