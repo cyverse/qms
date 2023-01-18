@@ -61,10 +61,10 @@ type PlanQuotaDefault struct {
 	ResourceType ResourceType `json:"resource_type,omitempty"`
 }
 
-// UserPlan define the structure for the API User plans.
+// Subscription define the structure for the API subscription.
 //
 // swagger:model
-type UserPlan struct {
+type Subscription struct {
 	// The subscription identifier
 	//
 	// readOnly: true
@@ -97,7 +97,7 @@ type UserPlan struct {
 
 // GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be
 // careful to ensure that all user plan details have been loaded before calling this function.
-func (up *UserPlan) GetCurrentUsageValue(resourceTypeID string) float64 {
+func (up *Subscription) GetCurrentUsageValue(resourceTypeID string) float64 {
 	var usageValue float64
 	for _, usage := range up.Usages {
 		if *usage.ResourceTypeID == resourceTypeID {

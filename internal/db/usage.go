@@ -14,7 +14,7 @@ func UpsertUsage(ctx context.Context, db *gorm.DB, usage *model.Usage) error {
 	return db.WithContext(ctx).Debug().Clauses(clause.OnConflict{
 		Columns: []clause.Column{
 			{
-				Name: "user_plan_id",
+				Name: "subscription_id",
 			},
 			{
 				Name: "resource_type_id",

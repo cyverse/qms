@@ -9,12 +9,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
+func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "getting all active user plans"})
 
 	context := ctx.Request().Context()
 
-	var userPlans []model.UserPlan
+	var subscriptions []model.Subscription
 	err := s.GORMDB.WithContext(context).
 		Preload("User").
 		Preload("Plan").
@@ -26,14 +26,14 @@ func (s Server) GetAllActiveUserPlans(ctx echo.Context) error {
 		Preload("Usages.ResourceType").
 		Where(
 			s.GORMDB.WithContext(context).
-				Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL")).
-		Find(&userPlans).Error
+				Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL")).
+		Find(&subscriptions).Error
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 
 	log.Debug("got user plans from the database")
 
-	return model.Success(ctx, userPlans, http.StatusOK)
+	return model.Success(ctx, subscriptions, http.StatusOK)
 }

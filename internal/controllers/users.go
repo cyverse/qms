@@ -47,8 +47,8 @@ type Result struct {
 	ResourceTypeID *string
 }
 
-// GetUserPlanDetails returns information about the currently active plan for the user.
-func (s Server) GetUserPlanDetails(ctx echo.Context) error {
+// GetSubscriptionDetails returns information about the currently active plan for the user.
+func (s Server) GetSubscriptionDetails(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "getting active user plan"})
 
 	context := ctx.Request().Context()
@@ -73,14 +73,14 @@ func (s Server) GetUserPlanDetails(ctx echo.Context) error {
 		log.Debugf("found user %s in db", user.Username)
 
 		// Look up or create the user plan.
-		userPlan, err := db.GetActiveUserPlanDetails(context, tx, user.Username)
+		subscription, err := db.GetActiveSubscriptionDetails(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-		log.Debugf("user plan name is %s", userPlan.Plan.Name)
+		log.Debugf("user plan name is %s", subscription.Plan.Name)
 
 		// Return the user plan.
-		return model.Success(ctx, userPlan, http.StatusOK)
+		return model.Success(ctx, subscription, http.StatusOK)
 	})
 }
 
@@ -149,14 +149,14 @@ func (s Server) UpdateCurrentSubscriptionQuota(c echo.Context) error {
 		}
 
 		// Determine whether or not the user has an active subscription.
-		hasActiveSubscription, err := db.HasActiveUserPlan(ctx, tx, username)
+		hasActiveSubscription, err := db.HasActiveSubscription(ctx, tx, username)
 		if err != nil {
 			log.Error(err)
 			return model.Error(c, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Load the user's current subscription, creating a new subscription if necessary.
-		subcription, err := db.GetActiveUserPlan(ctx, tx, username)
+		subcription, err := db.GetActiveSubscription(ctx, tx, username)
 		if err != nil {
 			log.Error(err)
 			return model.Error(c, err.Error(), http.StatusInternalServerError)
@@ -164,7 +164,7 @@ func (s Server) UpdateCurrentSubscriptionQuota(c echo.Context) error {
 
 		// Insert or update the quota.
 		quota := &model.Quota{
-			UserPlanID:     subcription.ID,
+			SubscriptionID: subcription.ID,
 			Quota:          body.Quota,
 			ResourceTypeID: resourceType.ID,
 		}
@@ -175,14 +175,14 @@ func (s Server) UpdateCurrentSubscriptionQuota(c echo.Context) error {
 		}
 
 		// Load the subscription details.
-		details, err := db.GetUserPlanDetails(ctx, tx, *subcription.ID)
+		details, err := db.GetSubscriptionDetails(ctx, tx, *subcription.ID)
 		if err != nil {
 			log.Error(err)
 			return model.Error(c, err.Error(), http.StatusInternalServerError)
 		}
 
 		// Return the response.
-		responseBody := model.SubscriptionResponseFromUserPlan(details, !hasActiveSubscription)
+		responseBody := model.SubscriptionResponseFromSubscription(details, !hasActiveSubscription)
 		return model.Success(c, responseBody, http.StatusOK)
 	})
 }
@@ -298,9 +298,9 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 		log.Debug("found user in the database")
 
-		// GetActiveUserPlan will automatically subscribe the user to the basic
+		// GetActiveSubscription will automatically subscribe the user to the basic
 		// plan if not subscribed already.
-		_, err = db.GetActiveUserPlan(context, tx, user.Username)
+		_, err = db.GetActiveSubscription(context, tx, user.Username)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -311,8 +311,8 @@ func (s Server) AddUser(ctx echo.Context) error {
 	})
 }
 
-// UpdateUserPlan subscribes the user to a new plan.
-func (s Server) UpdateUserPlan(ctx echo.Context) error {
+// UpdateSubscription subscribes the user to a new plan.
+func (s Server) UpdateSubscription(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "updating user plan"})
 
 	context := ctx.Request().Context()
@@ -361,7 +361,7 @@ func (s Server) UpdateUserPlan(ctx echo.Context) error {
 		log.Debug("verified that plan exists in database")
 
 		// Deactivate all active plans for the user.
-		err = db.DeactivateUserPlans(context, tx, *user.ID)
+		err = db.DeactivateSubscriptions(context, tx, *user.ID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}

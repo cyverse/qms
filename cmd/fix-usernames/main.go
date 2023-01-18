@@ -67,8 +67,8 @@ func listUsernames(ctx context.Context, tx *gorm.DB) ([]string, error) {
 
 // loadCurrentSubscription loads the current subscription for a single user. It does not create a new subscription if
 // the user doesn't currently have one.
-func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User) (*model.UserPlan, error) {
-	var subscriptions []model.UserPlan
+func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User) (*model.Subscription, error) {
+	var subscriptions []model.Subscription
 
 	// Look up the plan.
 	err := tx.WithContext(ctx).
@@ -82,15 +82,15 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 		Preload("Usages.ResourceType").
 		Where("user_id = ?", user.ID).
 		Where(
-			tx.Where("CURRENT_TIMESTAMP BETWEEN user_plans.effective_start_date AND user_plans.effective_end_date").
-				Or("CURRENT_TIMESTAMP > user_plans.effective_start_date AND user_plans.effective_end_date IS NULL"),
+			tx.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
+				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
-		Order("user_plans.effective_start_date desc").
+		Order("subscriptions.effective_start_date desc").
 		Limit(1).
 		Find(&subscriptions).
 		Error
 
-	var plan *model.UserPlan
+	var plan *model.Subscription
 	if len(subscriptions) > 0 {
 		plan = &subscriptions[0]
 	}
@@ -98,8 +98,8 @@ func loadCurrentSubscription(ctx context.Context, tx *gorm.DB, user *model.User)
 }
 
 // LoadSubscription loads the subscription details for the given subscription ID.
-func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID string) (*model.UserPlan, error) {
-	var subscription *model.UserPlan
+func loadSubscription(ctx context.Context, tx *gorm.DB, subscriptionID string) (*model.Subscription, error) {
+	var subscription *model.Subscription
 
 	err := tx.WithContext(ctx).
 		Preload("User").
@@ -124,8 +124,8 @@ func loadMostRecentDataUsage(ctx context.Context, tx *gorm.DB, oldUsername, newU
 
 	// Look up the usages.
 	err := tx.WithContext(ctx).
-		Joins("JOIN user_plans ON usages.user_plan_id = user_plans.id").
-		Joins("JOIN users ON user_plans.user_id = users.id").
+		Joins("JOIN subscriptions ON usages.subscription_id = subscriptions.id").
+		Joins("JOIN users ON subscriptions.user_id = users.id").
 		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
 		Where("users.username IN ?", []string{oldUsername, newUsername}).
 		Where("resource_types.name = ?", "data.size").
@@ -155,7 +155,7 @@ func findQuotaValue(quotas []model.Quota, resourceTypeName string) float64 {
 // setQuota either adds a quota to a subscription or updates a quota in a subscription.
 func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *string, quotaValue float64) error {
 	quota := model.Quota{
-		UserPlanID:     subscriptionID,
+		SubscriptionID: subscriptionID,
 		ResourceTypeID: resourceTypeID,
 		Quota:          quotaValue,
 	}
@@ -163,7 +163,7 @@ func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{
-					Name: "user_plan_id",
+					Name: "subscription_id",
 				},
 				{
 					Name: "resource_type_id",
@@ -177,7 +177,7 @@ func setQuota(ctx context.Context, tx *gorm.DB, subscriptionID, resourceTypeID *
 
 // restorePreviousQuotas ensures that the resource usage limits for the new subscription are at least as large as the
 // resource usage limits for the old subscription.
-func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, newSubscription *model.UserPlan) error {
+func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, newSubscription *model.Subscription) error {
 	for _, quota := range oldSubscription.Quotas {
 		newQuotaValue := findQuotaValue(newSubscription.Quotas, quota.ResourceType.Name)
 		if newQuotaValue < quota.Quota {
@@ -193,10 +193,10 @@ func restorePreviousQuotas(ctx context.Context, tx *gorm.DB, oldSubscription, ne
 // addUsageToSubscription adds a usage record to the new subscription. This function is only intended to be used to
 // add usage records to a brand new subscription, so it assumes that there aren't any usages associated with the
 // subscription yet.
-func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.UserPlan, usage *model.Usage) error {
+func addUsageToSubscription(ctx context.Context, tx *gorm.DB, subscription *model.Subscription, usage *model.Usage) error {
 	newUsage := &model.Usage{
 		ResourceTypeID: usage.ResourceTypeID,
-		UserPlanID:     subscription.ID,
+		SubscriptionID: subscription.ID,
 		Usage:          usage.Usage,
 	}
 	return tx.WithContext(ctx).Create(newUsage).Error
@@ -261,18 +261,18 @@ func fixUsername(ctx context.Context, tx *gorm.DB, newUsername string, usernameS
 
 	// Deactivate all plans for both the old username and the new username.
 	if oldUser != nil {
-		err = db.DeactivateUserPlans(ctx, tx, *oldUser.ID)
+		err = db.DeactivateSubscriptions(ctx, tx, *oldUser.ID)
 		if err != nil {
 			return errors.Wrapf(err, "unable to deactivate existing plans for %s", oldUser.Username)
 		}
 	}
-	err = db.DeactivateUserPlans(ctx, tx, *newUser.ID)
+	err = db.DeactivateSubscriptions(ctx, tx, *newUser.ID)
 	if err != nil {
 		return errors.Wrapf(err, "unable to deactivate existing plans for %s", newUser.Username)
 	}
 
 	// Create the new subscription.
-	var newSubscription *model.UserPlan
+	var newSubscription *model.Subscription
 	if oldSubscription == nil {
 		newSubscription, err = db.SubscribeUserToDefaultPlan(ctx, tx, newUser.Username)
 		if err != nil {

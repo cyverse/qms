@@ -15,7 +15,7 @@ type Quota struct {
 	Quota float64 `json:"quota"`
 
 	// The user plan ID
-	UserPlanID *string `gorm:"type:uuid;not null" json:"-"`
+	SubscriptionID *string `gorm:"type:uuid;not null" json:"-"`
 
 	// The resource type ID
 	ResourceTypeID *string `gorm:"type:uuid;not null" json:"-"`

@@ -76,12 +76,12 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		// Look up the currently active user plan, adding a default plan if one doesn't exist already.
-		userPlan, err := db.GetActiveUserPlanDetails(ctx, tx, username)
+		subscription, err := db.GetActiveSubscriptionDetails(ctx, tx, username)
 		if err != nil {
 			return err
 		}
 
-		log.Debugf("active plan is %s", userPlan.Plan.Name)
+		log.Debugf("active plan is %s", subscription.Plan.Name)
 
 		// Look up the resource type.
 		resourceType, err := db.GetResourceTypeByName(ctx, tx, usage.ResourceName)
@@ -106,7 +106,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 		// Determine the new usage value.
 		var newUsageValue float64
-		currentUsageValue := userPlan.GetCurrentUsageValue(*resourceType.ID)
+		currentUsageValue := subscription.GetCurrentUsageValue(*resourceType.ID)
 		log.Debugf("the current usage value is %f", currentUsageValue)
 		switch usage.UpdateType {
 		case UpdateTypeSet:
@@ -120,7 +120,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 
 		// Update the usage.
 		newUsage := &model.Usage{
-			UserPlanID:     userPlan.ID,
+			SubscriptionID: subscription.ID,
 			ResourceTypeID: resourceType.ID,
 			Usage:          newUsageValue,
 		}
@@ -137,7 +137,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 			EffectiveDate:     time.Now(),
 			UpdateOperationID: updateOperation.ID,
 			ResourceTypeID:    resourceType.ID,
-			UserID:            userPlan.UserID,
+			UserID:            subscription.UserID,
 		}
 		err = tx.WithContext(ctx).Debug().Create(&update).Error
 		if err != nil {
@@ -210,7 +210,7 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 
 	log = log.WithFields(logrus.Fields{"user": username})
 
-	userPlan, err := db.GetActiveUserPlanDetails(context, s.GORMDB, username)
+	subscription, err := db.GetActiveSubscriptionDetails(context, s.GORMDB, username)
 	if err != nil {
 		sCode := httpStatusCode(err)
 		log.Error(err)
@@ -219,7 +219,7 @@ func (s Server) GetAllUsageOfUser(ctx echo.Context) error {
 
 	log.Info("successfully found usages")
 
-	return model.Success(ctx, userPlan.Usages, http.StatusOK)
+	return model.Success(ctx, subscription.Usages, http.StatusOK)
 }
 
 func (s Server) GetAllUsageUpdatesForUser(ctx echo.Context) error {
