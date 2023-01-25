@@ -13,6 +13,9 @@ type SubscriptionRequest struct {
 	//
 	// required: true
 	PlanName *string `json:"plan_name"`
+
+	// True if the user paid for the subscription.
+	Paid *bool `json:"paid"`
 }
 
 // SubscriptionRequests represents a list of subscription requests.

@@ -93,6 +93,9 @@ type Subscription struct {
 
 	// The recorded usage amounts associated with the subscription
 	Usages []Usage `json:"usages"`
+
+	// True if the user paid for the subscription.
+	Paid bool `json:"paid"`
 }
 
 // GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be

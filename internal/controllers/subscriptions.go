@@ -53,12 +53,19 @@ func (sa *SubscriptionAdder) subscriptionError(username string, f string, args .
 }
 
 // AddSubscription subscribes a user to a subscription plan.
-func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *string) *model.SubscriptionResponse {
+func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.SubscriptionRequest) *model.SubscriptionResponse {
+	username := req.Username
+	planName := req.PlanName
+	paid := req.Paid
+
 	if username == nil || *username == "" {
 		return sa.subscriptionError("", "no username provided in request")
 	}
 	if planName == nil || *planName == "" {
 		return sa.subscriptionError(*username, "no plan name provided in request")
+	}
+	if paid == nil {
+		return sa.subscriptionError(*username, "no paid indicator provided in request")
 	}
 
 	// Look up the plan information.
@@ -72,6 +79,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		logrus.Fields{
 			"username": *username,
 			"planName": *planName,
+			"paid":     *paid,
 		},
 	)
 
@@ -106,7 +114,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	}
 
 	// Add the subscription.
-	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
+	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan, *paid)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())
@@ -176,8 +184,7 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 		_ = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 			response[i] = subscriptionAdder.AddSubscription(
 				tx,
-				subscriptionRequest.Username,
-				subscriptionRequest.PlanName,
+				subscriptionRequest,
 			)
 			return nil
 		})
