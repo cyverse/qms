@@ -94,7 +94,7 @@ type Subscription struct {
 	// The recorded usage amounts associated with the subscription
 	Usages []Usage `json:"usages"`
 
-	// Whether or not user's need to pay for the subscription.
+	// True if the user paid for the subscription.
 	Paid bool `json:"paid"`
 }
 

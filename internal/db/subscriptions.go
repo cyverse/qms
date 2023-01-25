@@ -26,7 +26,9 @@ func QuotasFromPlan(plan *model.Plan) []model.Quota {
 }
 
 // SubscribeUserToPlan subscribes the given user to the given plan.
-func SubscribeUserToPlan(ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan, paid bool) (*model.Subscription, error) {
+func SubscribeUserToPlan(
+	ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan, paid bool,
+) (*model.Subscription, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
 
@@ -67,7 +69,7 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 	}
 
 	// Subscribe the user to the plan.
-	return SubscribeUserToPlan(ctx, db, user, plan, true)
+	return SubscribeUserToPlan(ctx, db, user, plan, false)
 }
 
 // GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start

@@ -12,6 +12,7 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/QMS/internal/query"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -322,6 +323,12 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		return model.Error(ctx, "invalid plan name", http.StatusBadRequest)
 	}
 
+	paid := false
+	paid, err := query.ValidateBooleanQueryParam(ctx, "paid", &paid)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
 	log.Debugf("plan name from request is %s", planName)
 
 	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
@@ -369,7 +376,7 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		log.Debug("deactivated all active plans for the user")
 
 		// Subscribe the user to the plan.
-		_, err = db.SubscribeUserToPlan(context, tx, user, plan, true)
+		_, err = db.SubscribeUserToPlan(context, tx, user, plan, paid)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
