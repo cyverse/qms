@@ -323,8 +323,7 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		return model.Error(ctx, "invalid plan name", http.StatusBadRequest)
 	}
 
-	paid := false
-	paid, err := query.ValidateBooleanQueryParam(ctx, "paid", &paid)
+	paid, err := query.ValidateBooleanQueryParam(ctx, "paid", nil)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
