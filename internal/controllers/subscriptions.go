@@ -53,7 +53,7 @@ func (sa *SubscriptionAdder) subscriptionError(username string, f string, args .
 }
 
 // AddSubscription subscribes a user to a subscription plan.
-func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *string) *model.SubscriptionResponse {
+func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *string, paid bool) *model.SubscriptionResponse {
 	if username == nil || *username == "" {
 		return sa.subscriptionError("", "no username provided in request")
 	}
@@ -72,6 +72,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 		logrus.Fields{
 			"username": *username,
 			"planName": *planName,
+			"paid":     paid,
 		},
 	)
 
@@ -106,7 +107,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, username, planName *st
 	}
 
 	// Add the subscription.
-	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan)
+	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan, paid)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())
@@ -178,6 +179,7 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 				tx,
 				subscriptionRequest.Username,
 				subscriptionRequest.PlanName,
+				subscriptionRequest.Paid,
 			)
 			return nil
 		})
