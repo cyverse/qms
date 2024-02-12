@@ -221,8 +221,8 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	for _, r := range results {
 		responseList.Overages = append(responseList.Overages, &qms.Overage{
 			ResourceName: r["resource_type_name"].(string),
-			Quota:        r["quota"].(float32),
-			Usage:        r["usage"].(float32),
+			Quota:        r["quota"].(float64),
+			Usage:        r["usage"].(float64),
 		})
 	}
 
@@ -314,7 +314,7 @@ func (s Server) AddUser(ctx echo.Context) error {
 
 // swagger:route PUT /v1/users/{username}/{plan_name} users updateSubscription
 //
-// # Subscribe a user to a new plan.
+// # Subscribe a User to a New Plan
 //
 // Creates a new subscription for the user with the given username.
 //
