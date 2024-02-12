@@ -1,6 +1,6 @@
 module github.com/cyverse/QMS
 
-go 1.18
+go 1.21
 
 require (
 	github.com/cyverse-de/echo-middleware/v2 v2.0.2
