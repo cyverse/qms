@@ -312,7 +312,18 @@ func (s Server) AddUser(ctx echo.Context) error {
 	})
 }
 
-// UpdateSubscription subscribes the user to a new plan.
+// swagger:route PUT /v1/users/{username}/{plan_name} users updateSubscription
+//
+// # Subscribe a user to a new plan.
+//
+// Creates a new subscription for the user with the given username.
+//
+// Responses:
+//   200: subscription
+//   400: badRequestResponse
+//   500: internalServerErrorResponse
+
+// UpdateSubscription is the handler for the PUT /v1/users/{username}/{plan_name} endpoint.
 func (s Server) UpdateSubscription(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "updating user plan"})
 
@@ -375,13 +386,21 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		log.Debug("deactivated all active plans for the user")
 
 		// Subscribe the user to the plan.
-		_, err = db.SubscribeUserToPlan(context, tx, user, plan, paid)
+		subscription, err := db.SubscribeUserToPlan(context, tx, user, plan, paid)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		log.Debug("subscribed user to the new plan")
 
-		return model.Success(ctx, "Success", http.StatusOK)
+		// Load the subscription details.
+		details, err := db.GetSubscriptionDetails(context, tx, *subscription.ID)
+		if err != nil {
+			log.Error(err)
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Return the response.
+		return model.Success(ctx, details, http.StatusOK)
 	})
 }

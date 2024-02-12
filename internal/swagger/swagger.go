@@ -223,6 +223,41 @@ type SubscriptionListing struct {
 	}
 }
 
+// Subscription update parameters.
+//
+// swagger:parameters updateSubscription
+type UpdateSubscriptionParameters struct {
+
+	// The username of the user.
+	//
+	// in: path
+	Username string `json:"username"`
+
+	// The name of the plan.
+	//
+	// in: path
+	PlanName string `json:"plan_name"`
+
+	// A flag indicating whether or not the user paid for the subscription.
+	//
+	// in: query
+	Paid bool `json:"paid"`
+}
+
+// Subscription Details
+//
+// swagger:response subscription
+type Subscription struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The subscription details.
+		Result model.Subscription
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse
