@@ -238,10 +238,23 @@ type UpdateSubscriptionParameters struct {
 	// in: path
 	PlanName string `json:"plan_name"`
 
-	// A flag indicating whether or not the user paid for the subscription.
+	// A flag indicating whether or not the user paid for the subscription
 	//
 	// in: query
+	// required: true
 	Paid bool `json:"paid"`
+
+	// The number of subscription periods the user is purchasing
+	//
+	// in: query
+	// default: 1
+	Periods int32 `json:"periods"`
+
+	// The date the subscription ends; defaults to one year after the subscription start date per period
+	//
+	// in: query
+	// format: date
+	EndDate string `json:"end_date"`
 }
 
 // Subscription Details
