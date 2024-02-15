@@ -13,12 +13,20 @@ type ResourceType struct {
 	//
 	// readOnly: true
 	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
+
 	// The resource type name
 	//
 	// required: true
 	Name string `gorm:"not null;unique" json:"name,omitempty"`
+
 	// The unit of measure used for the resource type
 	//
 	// required: true
 	Unit string `gorm:"not null;unique" json:"unit,omitempty"`
+
+	// Indicates whether or not a resource is consumable. That is, whether or not using the resource permanently
+	// consumes a portion of the allocation. For example, CPU hours are permanently consumed as soon as they're used,
+	// so they would be considered consumable. Conversely, data storage can be reclaimed by removing files form the
+	// data store, so data storage is not considered to be consumable.
+	Consumable bool `json:"consumable"`
 }
