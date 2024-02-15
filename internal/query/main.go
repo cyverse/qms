@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -48,6 +49,35 @@ func ValidateBooleanQueryParam(ctx echo.Context, name string, defaultValue *bool
 		return false, errors.Wrap(err, errMsg)
 	}
 	return result, nil
+}
+
+// ValidateDateQueryParam extracts the value of a date query parameter and validates it.
+func ValidateDateQueryParam(ctx echo.Context, name string, defaultValue *time.Time) (time.Time, error) {
+	errMsg := fmt.Sprintf("invalid query parameter: %s", name)
+	value := ctx.QueryParam(name)
+
+	// Extract the time value.
+	var timeValue time.Time
+
+	// Assume that the parameter is required if there's no default.
+	if defaultValue == nil {
+		if err := v.Var(value, "required"); err != nil {
+			return timeValue, fmt.Errorf("missing required query parameter: %s", name)
+		}
+	}
+
+	// If no value was provided at this point then the parameter is optional; return the default value.
+	if value == "" {
+		return *defaultValue, nil
+	}
+
+	// Parse the parameter value and return the result.
+	timeValue, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return timeValue, errors.Wrap(err, errMsg)
+	}
+
+	return timeValue, nil
 }
 
 // ValidateIntQueryParam extracts an optional integer query parameter and validates it.

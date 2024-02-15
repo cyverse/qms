@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -333,20 +334,36 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 	if planName == "" {
 		return model.Error(ctx, "invalid plan name", http.StatusBadRequest)
 	}
+	log.Debugf("plan name from request is %s", planName)
 
 	paid, err := query.ValidateBooleanQueryParam(ctx, "paid", nil)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
-
-	log.Debugf("plan name from request is %s", planName)
+	log.Debugf("paid flag from request is %t", paid)
 
 	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
-
 	log.Debugf("user name from request is %s", username)
+
+	var defaultPeriods int32 = 1
+	periods, err := query.ValidateIntQueryParam(ctx, "periods", &defaultPeriods, "gte=0")
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	log.Debugf("periods from request is %d", periods)
+
+	defaultEndDate := time.Now().AddDate(1, 0, 0)
+	endDate, err := query.ValidateDateQueryParam(ctx, "end_date", &defaultEndDate)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	if !endDate.After(time.Now()) {
+		return model.Error(ctx, "end date must be in the future", http.StatusBadRequest)
+	}
+	log.Debugf("end date from request is %s", endDate)
 
 	log = log.WithFields(logrus.Fields{
 		"user": username,
