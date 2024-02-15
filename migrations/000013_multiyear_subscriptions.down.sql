@@ -6,6 +6,6 @@ BEGIN;
 
 SET search_path = public, pg_catalog;
 
-ALTER TABLE resource_types DROP IF EXISTS expendable CASCADE;
+ALTER TABLE resource_types DROP IF EXISTS consumable CASCADE;
 
 COMMIT;
