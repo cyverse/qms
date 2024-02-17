@@ -1,5 +1,48 @@
 package model
 
+import "time"
+
+// SubscriptionOptions represents options that can be applied to a new subscription.
+//
+// swagger: model
+type SubscriptionOptions struct {
+	// True if the user paid for the subscription.
+	Paid *bool `json:"paid"`
+
+	// The number of periods included in the subscription.
+	Periods *int32 `json:"periods"`
+
+	// The effective end date of the subscription.
+	EndDate *time.Time `json:"end_date"`
+}
+
+// Return the appropriate paid flag for the subscription options.
+func (o *SubscriptionOptions) IsPaid() bool {
+	if o.Paid == nil {
+		return false
+	} else {
+		return *o.Paid
+	}
+}
+
+// Return the number of periods for the subscription options.
+func (o *SubscriptionOptions) GetPeriods() int32 {
+	if o.Periods == nil {
+		return 1
+	} else {
+		return *o.Periods
+	}
+}
+
+// Return the effective end date for the subscription options.
+func (o *SubscriptionOptions) GetEndDate(startDate time.Time) time.Time {
+	if o.EndDate == nil {
+		return startDate.AddDate(int(o.GetPeriods()), 0, 0)
+	} else {
+		return *o.EndDate
+	}
+}
+
 // SubscriptionRequest represents a request for a single subscription.
 //
 // swagger: model

@@ -14,11 +14,15 @@ import (
 
 // QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan. This function assumes that the
 // given plan already contains the plan quota defaults.
-func QuotasFromPlan(plan *model.Plan) []model.Quota {
+func QuotasFromPlan(plan *model.Plan, periods int32) []model.Quota {
 	result := make([]model.Quota, len(plan.PlanQuotaDefaults))
 	for i, quotaDefault := range plan.PlanQuotaDefaults {
+		quotaValue := quotaDefault.QuotaValue
+		if quotaDefault.ResourceType.Consumable {
+			quotaValue *= float64(periods)
+		}
 		result[i] = model.Quota{
-			Quota:          quotaDefault.QuotaValue,
+			Quota:          quotaValue,
 			ResourceTypeID: quotaDefault.ResourceTypeID,
 		}
 	}
@@ -27,21 +31,21 @@ func QuotasFromPlan(plan *model.Plan) []model.Quota {
 
 // SubscribeUserToPlan subscribes the given user to the given plan.
 func SubscribeUserToPlan(
-	ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan, paid bool,
+	ctx context.Context, db *gorm.DB, user *model.User, plan *model.Plan, opts *model.SubscriptionOptions,
 ) (*model.Subscription, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
 
 	// Define the user plan.
 	effectiveStartDate := time.Now()
-	effectiveEndDate := effectiveStartDate.AddDate(1, 0, 0)
+	effectiveEndDate := opts.GetEndDate(effectiveStartDate)
 	subscription := model.Subscription{
 		EffectiveStartDate: &effectiveStartDate,
 		EffectiveEndDate:   &effectiveEndDate,
 		UserID:             user.ID,
 		PlanID:             plan.ID,
-		Quotas:             QuotasFromPlan(plan),
-		Paid:               paid,
+		Quotas:             QuotasFromPlan(plan, opts.GetPeriods()),
+		Paid:               opts.IsPaid(),
 	}
 	err = db.WithContext(ctx).Create(&subscription).Error
 	if err != nil {
@@ -69,7 +73,7 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 	}
 
 	// Subscribe the user to the plan.
-	return SubscribeUserToPlan(ctx, db, user, plan, false)
+	return SubscribeUserToPlan(ctx, db, user, plan, &model.SubscriptionOptions{})
 }
 
 // GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start

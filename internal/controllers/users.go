@@ -402,8 +402,13 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 
 		log.Debug("deactivated all active plans for the user")
 
+		// Define the subscription options.
+		opts := &model.SubscriptionOptions{
+			Paid: &paid,
+		}
+
 		// Subscribe the user to the plan.
-		subscription, err := db.SubscribeUserToPlan(context, tx, user, plan, paid)
+		subscription, err := db.SubscribeUserToPlan(context, tx, user, plan, opts)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
