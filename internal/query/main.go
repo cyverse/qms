@@ -72,7 +72,7 @@ func ValidateDateQueryParam(ctx echo.Context, name string, defaultValue *time.Ti
 	}
 
 	// Parse the parameter value and return the result.
-	timeValue, err := time.Parse(time.DateOnly, value)
+	timeValue, err := time.ParseInLocation(time.DateOnly, value, time.Now().Location())
 	if err != nil {
 		return timeValue, errors.Wrap(err, errMsg)
 	}

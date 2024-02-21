@@ -355,8 +355,8 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 	}
 	log.Debugf("periods from request is %d", periods)
 
-	defaultEndDate := time.Now().AddDate(1, 0, 0)
-	endDate, err := query.ValidateDateQueryParam(ctx, "end_date", &defaultEndDate)
+	defaultEndDate := time.Now().AddDate(int(periods), 0, 0)
+	endDate, err := query.ValidateDateQueryParam(ctx, "end-date", &defaultEndDate)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
@@ -404,7 +404,9 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 
 		// Define the subscription options.
 		opts := &model.SubscriptionOptions{
-			Paid: &paid,
+			Paid:    &paid,
+			Periods: &periods,
+			EndDate: &endDate,
 		}
 
 		// Subscribe the user to the plan.
