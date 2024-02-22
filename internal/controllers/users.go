@@ -13,6 +13,7 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/QMS/internal/model/timestamp"
 	"github.com/cyverse/QMS/internal/query"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -403,10 +404,11 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		log.Debug("deactivated all active plans for the user")
 
 		// Define the subscription options.
+		endTimestamp := timestamp.Timestamp(endDate)
 		opts := &model.SubscriptionOptions{
 			Paid:    &paid,
 			Periods: &periods,
-			EndDate: &endDate,
+			EndDate: &endTimestamp,
 		}
 
 		// Subscribe the user to the plan.

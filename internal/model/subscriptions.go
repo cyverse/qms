@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/cyverse/QMS/internal/model/timestamp"
+)
 
 // SubscriptionOptions represents options that can be applied to a new subscription.
 //
@@ -13,7 +17,7 @@ type SubscriptionOptions struct {
 	Periods *int32 `json:"periods"`
 
 	// The effective end date of the subscription.
-	EndDate *time.Time `json:"end_date"`
+	EndDate *timestamp.Timestamp `json:"end_date"`
 }
 
 // Return the appropriate paid flag for the subscription options.
@@ -39,7 +43,7 @@ func (o *SubscriptionOptions) GetEndDate(startDate time.Time) time.Time {
 	if o.EndDate == nil {
 		return startDate.AddDate(int(o.GetPeriods()), 0, 0)
 	} else {
-		return *o.EndDate
+		return time.Time(*o.EndDate)
 	}
 }
 
@@ -47,6 +51,8 @@ func (o *SubscriptionOptions) GetEndDate(startDate time.Time) time.Time {
 //
 // swagger: model
 type SubscriptionRequest struct {
+	SubscriptionOptions
+
 	// The username to associate with the subscription
 	//
 	// required: true
@@ -56,9 +62,6 @@ type SubscriptionRequest struct {
 	//
 	// required: true
 	PlanName *string `json:"plan_name"`
-
-	// True if the user paid for the subscription.
-	Paid *bool `json:"paid"`
 }
 
 // SubscriptionRequests represents a list of subscription requests.
