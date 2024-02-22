@@ -223,6 +223,54 @@ type SubscriptionListing struct {
 	}
 }
 
+// Subscription update parameters.
+//
+// swagger:parameters updateSubscription
+type UpdateSubscriptionParameters struct {
+
+	// The username of the user.
+	//
+	// in: path
+	Username string `json:"username"`
+
+	// The name of the plan.
+	//
+	// in: path
+	PlanName string `json:"plan_name"`
+
+	// A flag indicating whether or not the user paid for the subscription
+	//
+	// in: query
+	// required: true
+	Paid bool `json:"paid"`
+
+	// The number of subscription periods the user is purchasing
+	//
+	// in: query
+	// default: 1
+	Periods int32 `json:"periods"`
+
+	// The date the subscription ends; defaults to one year after the subscription start date per period
+	//
+	// in: query
+	// format: date
+	EndDate string `json:"end_date"`
+}
+
+// Subscription Details
+//
+// swagger:response subscription
+type Subscription struct {
+
+	// in:body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The subscription details.
+		Result model.Subscription
+	}
+}
+
 // Plan Listing
 //
 // swagger:response plansResponse

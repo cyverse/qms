@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/cyverse/QMS/internal/db"
 	"github.com/cyverse/QMS/internal/httpmodel"
 	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/QMS/internal/model/timestamp"
 	"github.com/cyverse/QMS/internal/query"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -221,8 +223,8 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 	for _, r := range results {
 		responseList.Overages = append(responseList.Overages, &qms.Overage{
 			ResourceName: r["resource_type_name"].(string),
-			Quota:        r["quota"].(float32),
-			Usage:        r["usage"].(float32),
+			Quota:        r["quota"].(float64),
+			Usage:        r["usage"].(float64),
 		})
 	}
 
@@ -312,7 +314,18 @@ func (s Server) AddUser(ctx echo.Context) error {
 	})
 }
 
-// UpdateSubscription subscribes the user to a new plan.
+// swagger:route PUT /v1/users/{username}/{plan_name} users updateSubscription
+//
+// # Subscribe a User to a New Plan
+//
+// Creates a new subscription for the user with the given username.
+//
+// Responses:
+//   200: subscription
+//   400: badRequestResponse
+//   500: internalServerErrorResponse
+
+// UpdateSubscription is the handler for the PUT /v1/users/{username}/{plan_name} endpoint.
 func (s Server) UpdateSubscription(ctx echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "updating user plan"})
 
@@ -322,20 +335,36 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 	if planName == "" {
 		return model.Error(ctx, "invalid plan name", http.StatusBadRequest)
 	}
+	log.Debugf("plan name from request is %s", planName)
 
 	paid, err := query.ValidateBooleanQueryParam(ctx, "paid", nil)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
-
-	log.Debugf("plan name from request is %s", planName)
+	log.Debugf("paid flag from request is %t", paid)
 
 	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
 	if username == "" {
 		return model.Error(ctx, "invalid username", http.StatusBadRequest)
 	}
-
 	log.Debugf("user name from request is %s", username)
+
+	var defaultPeriods int32 = 1
+	periods, err := query.ValidateIntQueryParam(ctx, "periods", &defaultPeriods, "gte=0")
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	log.Debugf("periods from request is %d", periods)
+
+	defaultEndDate := time.Now().AddDate(int(periods), 0, 0)
+	endDate, err := query.ValidateDateQueryParam(ctx, "end-date", &defaultEndDate)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	if !endDate.After(time.Now()) {
+		return model.Error(ctx, "end date must be in the future", http.StatusBadRequest)
+	}
+	log.Debugf("end date from request is %s", endDate)
 
 	log = log.WithFields(logrus.Fields{
 		"user": username,
@@ -374,14 +403,30 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 
 		log.Debug("deactivated all active plans for the user")
 
+		// Define the subscription options.
+		endTimestamp := timestamp.Timestamp(endDate)
+		opts := &model.SubscriptionOptions{
+			Paid:    &paid,
+			Periods: &periods,
+			EndDate: &endTimestamp,
+		}
+
 		// Subscribe the user to the plan.
-		_, err = db.SubscribeUserToPlan(context, tx, user, plan, paid)
+		subscription, err := db.SubscribeUserToPlan(context, tx, user, plan, opts)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
 		log.Debug("subscribed user to the new plan")
 
-		return model.Success(ctx, "Success", http.StatusOK)
+		// Load the subscription details.
+		details, err := db.GetSubscriptionDetails(context, tx, *subscription.ID)
+		if err != nil {
+			log.Error(err)
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Return the response.
+		return model.Success(ctx, details, http.StatusOK)
 	})
 }

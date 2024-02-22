@@ -114,7 +114,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 	}
 
 	// Add the subscription.
-	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan, *paid)
+	sub, err := db.SubscribeUserToPlan(sa.cfg.Ctx, tx, user, plan, &req.SubscriptionOptions)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())
