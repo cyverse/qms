@@ -2,7 +2,7 @@ package logging
 
 import (
 	gomodlog "github.com/cyverse-de/go-mod/logging"
-	"github.com/cyverse/QMS/config"
+	"github.com/cyverse/qms/config"
 	"github.com/sirupsen/logrus"
 )
 

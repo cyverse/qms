@@ -3,7 +3,7 @@ package db
 import (
 	"context"
 
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

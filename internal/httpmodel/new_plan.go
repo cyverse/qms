@@ -3,7 +3,7 @@ package httpmodel
 import (
 	"fmt"
 
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/model"
 )
 
 // Note: the names in the comments may deviate a bit from the actual structure names in order to avoid producing

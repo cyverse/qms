@@ -1,4 +1,4 @@
-module github.com/cyverse/QMS
+module github.com/cyverse/qms
 
 go 1.21
 

@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	"github.com/cyverse/QMS/internal/model/timestamp"
+	"github.com/cyverse/qms/internal/model/timestamp"
 )
 
 // SubscriptionOptions represents options that can be applied to a new subscription.

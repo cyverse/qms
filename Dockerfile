@@ -4,7 +4,7 @@ RUN go install github.com/jstemmer/go-junit-report@latest
 
 ENV CGO_ENABLED=0
 
-WORKDIR /go/src/github.com/cyverse-de/QMS
+WORKDIR /go/src/github.com/cyverse-de/qms
 COPY . .
 RUN make
 
@@ -12,10 +12,10 @@ FROM debian:stable-slim
 
 WORKDIR /app
 
-COPY --from=0 /go/src/github.com/cyverse-de/QMS/QMS /bin/QMS
-COPY --from=0 /go/src/github.com/cyverse-de/QMS/swagger.json swagger.json
-COPY --from=0 /go/src/github.com/cyverse-de/QMS/migrations migrations
+COPY --from=0 /go/src/github.com/cyverse-de/qms/qms /bin/qms
+COPY --from=0 /go/src/github.com/cyverse-de/qms/swagger.json swagger.json
+COPY --from=0 /go/src/github.com/cyverse-de/qms/migrations migrations
 
-ENTRYPOINT ["QMS"]
+ENTRYPOINT ["qms"]
 
 EXPOSE 8080

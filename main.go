@@ -8,9 +8,9 @@ import (
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/otelutils"
-	"github.com/cyverse/QMS/config"
-	"github.com/cyverse/QMS/logging"
-	"github.com/cyverse/QMS/server"
+	"github.com/cyverse/qms/config"
+	"github.com/cyverse/qms/logging"
+	"github.com/cyverse/qms/server"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/model"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

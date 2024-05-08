@@ -10,7 +10,7 @@ const (
 	ValueTypeUsages = "usages"
 )
 
-// UpdateOperation defines the structure of an available update operation in the QMS database.
+// UpdateOperation defines the structure of an available update operation in the qms database.
 //
 // swagger:model
 type UpdateOperation struct {

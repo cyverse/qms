@@ -5,7 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/model"
 	"github.com/labstack/echo/v4"
 )
 

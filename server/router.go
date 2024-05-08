@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/cyverse-de/echo-middleware/v2/redoc"
-	"github.com/cyverse/QMS/internal/controllers"
+	"github.com/cyverse/qms/internal/controllers"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -32,7 +32,7 @@ func InitRouter() *echo.Echo {
 	e.Logger = echoLogger
 
 	// Add middleware.
-	e.Use(otelecho.Middleware("QMS"))
+	e.Use(otelecho.Middleware("qms"))
 	e.Use(echoLogger.Hook())
 	e.Use(middleware.Recover())
 	e.Use(redoc.Serve(redoc.Opts{Title: "CyVerse Quota Management System"}))

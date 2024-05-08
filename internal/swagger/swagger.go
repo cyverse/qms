@@ -1,6 +1,6 @@
-// Package api QMS
+// Package api qms
 //
-// Documentation of the QMS Api
+// Documentation of the qms Api
 //
 //	Schemes: http
 //	BasePath: /
@@ -16,9 +16,9 @@
 package swagger
 
 import (
-	"github.com/cyverse/QMS/internal/controllers"
-	"github.com/cyverse/QMS/internal/httpmodel"
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/controllers"
+	"github.com/cyverse/qms/internal/httpmodel"
+	"github.com/cyverse/qms/internal/model"
 )
 
 // Note: the comments in this package don't conform to the convention of including the name of the entity that the

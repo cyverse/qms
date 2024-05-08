@@ -6,9 +6,9 @@ import (
 	"github.com/cyverse-de/go-mod/cfg"
 )
 
-var ServiceName = "QMS"
+var ServiceName = "qms"
 
-// Specification defines the configuration settings for the QMS service.
+// Specification defines the configuration settings for the qms service.
 type Specification struct {
 	DatabaseURI         string
 	RunSchemaMigrations bool
@@ -19,7 +19,7 @@ type Specification struct {
 	UsernameSuffix      string
 }
 
-// LoadConfig loads the configuration for the QMS service.
+// LoadConfig loads the configuration for the qms service.
 func LoadConfig(envPrefix, configPath, dotEnvPath string) (*Specification, error) {
 	k, err := cfg.Init(&cfg.Settings{
 		EnvPrefix:   envPrefix,

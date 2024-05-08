@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/cyverse-de/echo-middleware/v2/params"
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/model"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -26,7 +26,7 @@ func extractResourceTypeID(ctx echo.Context) (string, error) {
 //
 // List Resource Types
 //
-// Lists all the resource types defined in the QMS database.
+// Lists all the resource types defined in the qms database.
 //
 // responses:
 //   200: resourceTypeListing
@@ -53,7 +53,7 @@ func (s Server) ListResourceTypes(ctx echo.Context) error {
 //
 // Add Resource Type
 //
-// Adds a new resource type to the QMS database.
+// Adds a new resource type to the qms database.
 //
 // responses:
 //   200: resourceTypeDetails
@@ -151,7 +151,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 //
 // Update Resource Type
 //
-// Updates an existing resource type in the QMS database.
+// Updates an existing resource type in the qms database.
 //
 // responses:
 //   200: resourceTypeDetails

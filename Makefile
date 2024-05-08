@@ -1,4 +1,4 @@
-all: QMS
+all: qms
 
 install-swagger:
 	which swagger || go install github.com/go-swagger/go-swagger/cmd/swagger@latest
@@ -6,10 +6,16 @@ install-swagger:
 swagger.json: install-swagger
 	swagger generate spec -o ./swagger.json --scan-models
 
-QMS: swagger.json
+qms: swagger.json
 	go build --buildvcs=false .
 
 clean:
-	rm -rf QMS swagger.json 
+	rm -rf qms swagger.json
 
-.PHONY: install-swagger clean all
+lint:
+	golangci-lint run
+
+test:
+	go test ./...
+
+.PHONY: install-swagger clean all lint test

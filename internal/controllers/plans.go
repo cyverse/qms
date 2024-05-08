@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/cyverse-de/echo-middleware/v2/params"
-	"github.com/cyverse/QMS/internal/db"
-	"github.com/cyverse/QMS/internal/httpmodel"
-	"github.com/cyverse/QMS/internal/model"
+	"github.com/cyverse/qms/internal/db"
+	"github.com/cyverse/qms/internal/httpmodel"
+	"github.com/cyverse/qms/internal/model"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cyverse/QMS/internal/db"
-	"github.com/cyverse/QMS/internal/model"
-	"github.com/cyverse/QMS/internal/query"
+	"github.com/cyverse/qms/internal/db"
+	"github.com/cyverse/qms/internal/model"
+	"github.com/cyverse/qms/internal/query"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

@@ -3,10 +3,10 @@ package server
 import (
 	"fmt"
 
-	"github.com/cyverse/QMS/config"
-	"github.com/cyverse/QMS/internal/controllers"
-	"github.com/cyverse/QMS/internal/db"
-	"github.com/cyverse/QMS/logging"
+	"github.com/cyverse/qms/config"
+	"github.com/cyverse/qms/internal/controllers"
+	"github.com/cyverse/qms/internal/db"
+	"github.com/cyverse/qms/logging"
 	"github.com/sirupsen/logrus"
 )
 

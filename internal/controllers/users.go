@@ -10,11 +10,11 @@ import (
 
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/p/go/qms"
-	"github.com/cyverse/QMS/internal/db"
-	"github.com/cyverse/QMS/internal/httpmodel"
-	"github.com/cyverse/QMS/internal/model"
-	"github.com/cyverse/QMS/internal/model/timestamp"
-	"github.com/cyverse/QMS/internal/query"
+	"github.com/cyverse/qms/internal/db"
+	"github.com/cyverse/qms/internal/httpmodel"
+	"github.com/cyverse/qms/internal/model"
+	"github.com/cyverse/qms/internal/model/timestamp"
+	"github.com/cyverse/qms/internal/query"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +28,7 @@ const (
 //
 // List Users
 //
-// Lists the users registered in the QMS database.
+// Lists the users registered in the qms database.
 //
 // responses:
 //   200: userListing
@@ -199,7 +199,7 @@ func (s Server) GetUserOverages(ctx echo.Context) error {
 
 	responseList := pbinit.NewOverageList()
 
-	// Skip the remaining logic because QMS is configured to not report overages.
+	// Skip the remaining logic because qms is configured to not report overages.
 	if !s.ReportOverages {
 		return model.ProtobufJSON(ctx, responseList, http.StatusOK)
 	}
@@ -240,7 +240,7 @@ func (s Server) InOverage(ctx echo.Context) error {
 
 	response := pbinit.NewIsOverage()
 
-	// Skip the rest of the logic because QMS is configured to not report overages
+	// Skip the rest of the logic because qms is configured to not report overages
 	if !s.ReportOverages {
 		response.IsOverage = false
 		return model.ProtobufJSON(ctx, response, http.StatusOK)
