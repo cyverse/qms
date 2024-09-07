@@ -42,14 +42,18 @@ func NewSubscriptionAdder(tx *gorm.DB, cfg *SubscriptionAdderConfig) (*Subscript
 	return subscriptionAdder, nil
 }
 
-// subscriptionError returns an error record indicating that a subscription could not be created. This is just a
-// utility function to remove some cumbersome code in AddSubscription.
-func (sa *SubscriptionAdder) subscriptionError(username string, f string, args ...any) *model.SubscriptionResponse {
-	msg := fmt.Sprintf(f, args...)
+// subscriptionError returns an error record indicating that a subscription could not be created.
+func (sa *SubscriptionAdder) subscriptionError(username, msg string) *model.SubscriptionResponse {
 	return &model.SubscriptionResponse{
 		Subscription:  model.Subscription{User: &model.User{Username: username}},
 		FailureReason: &msg,
 	}
+}
+
+// subscriptionErrorf returns an error record indicating that a subscription could not be created. This is just a
+// utility function to remove some cumbersome code in AddSubscription.
+func (sa *SubscriptionAdder) subscriptionErrorf(username string, f string, args ...any) *model.SubscriptionResponse {
+	return sa.subscriptionError(username, fmt.Sprintf(f, args...))
 }
 
 // AddSubscription subscribes a user to a subscription plan.
@@ -59,19 +63,19 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 	paid := req.Paid
 
 	if username == nil || *username == "" {
-		return sa.subscriptionError("", "no username provided in request")
+		return sa.subscriptionErrorf("", "no username provided in request")
 	}
 	if planName == nil || *planName == "" {
-		return sa.subscriptionError(*username, "no plan name provided in request")
+		return sa.subscriptionErrorf(*username, "no plan name provided in request")
 	}
 	if paid == nil {
-		return sa.subscriptionError(*username, "no paid indicator provided in request")
+		return sa.subscriptionErrorf(*username, "no paid indicator provided in request")
 	}
 
 	// Look up the plan information.
 	plan, ok := sa.plansByName[*planName]
 	if !ok || plan == nil {
-		return sa.subscriptionError(*username, "plan does not exist: %s", *planName)
+		return sa.subscriptionErrorf(*username, "plan does not exist: %s", *planName)
 	}
 
 	// Add some fields to the logger.

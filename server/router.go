@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 	echolog "github.com/spirosoik/echo-logrus"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 // CustomValidator represents a validator that Echo can use to check incoming requests.
@@ -32,7 +31,6 @@ func InitRouter() *echo.Echo {
 	e.Logger = echoLogger
 
 	// Add middleware.
-	e.Use(otelecho.Middleware("qms"))
 	e.Use(echoLogger.Hook())
 	e.Use(middleware.Recover())
 	e.Use(redoc.Serve(redoc.Opts{Title: "CyVerse Quota Management System"}))
