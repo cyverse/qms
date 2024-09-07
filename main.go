@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/cyverse-de/go-mod/cfg"
-	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse/qms/config"
 	"github.com/cyverse/qms/logging"
 	"github.com/cyverse/qms/server"
@@ -72,13 +70,6 @@ func main() {
 	logging.SetupLogging(*logLevel)
 
 	log := log.WithFields(logrus.Fields{"context": "main"})
-
-	var tracerCtx, cancel = context.WithCancel(context.Background())
-	defer cancel()
-	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, config.ServiceName, func(e error) { log.Fatal(e) })
-	defer shutdown()
-
-	log.Info("set up tracing")
 
 	// Load the configuration.
 	spec, err := config.LoadConfig(*envPrefix, *configPath, *dotEnvPath)

@@ -67,7 +67,7 @@ func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 		Preload("PlanQuotaDefaults.ResourceType").
 		Find(&plans).Error
 	if err != nil {
-		return nil, errors.Wrapf(err, wrapMsg)
+		return nil, errors.Wrap(err, wrapMsg)
 	}
 
 	return plans, nil
