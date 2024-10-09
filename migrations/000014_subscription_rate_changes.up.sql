@@ -30,12 +30,15 @@ ON CONFLICT (id) DO NOTHING;
 DROP INDEX IF EXISTS plan_quota_defaults_resource_type_plan_index;
 
 -- Add the effective date column to the plan_quota_defaults table.
-ALTER TABLE plan_quota_defaults ADD COLUMN effective_date timestamp WITH time zone;
+ALTER TABLE IF EXISTS plan_quota_defaults ADD COLUMN effective_date timestamp WITH time zone;
 UPDATE plan_quota_defaults SET effective_date = '2022-01-01';
-ALTER TABLE plan_quota_defaults ALTER COLUMN effective_date SET NOT NULL;
+ALTER TABLE IF EXISTS plan_quota_defaults ALTER COLUMN effective_date SET NOT NULL;
 
 -- Add the plan rate ID column to the subscriptions table.
-ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_rate_id uuid REFERENCES plan_rates (id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS subscriptions
+ADD COLUMN IF NOT EXISTS plan_rate_id uuid REFERENCES plan_rates (id) ON DELETE CASCADE;
+
+-- Populate the new column.
 UPDATE subscriptions SET plan_rate_id = (
        SELECT id FROM plan_rates
        WHERE plan_id = subscriptions.plan_id
@@ -43,6 +46,8 @@ UPDATE subscriptions SET plan_rate_id = (
        ORDER BY effective_date DESC
        LIMIT 1
 );
-ALTER TABLE subscriptions ALTER COLUMN plan_rate_id SET NOT NULL;
+
+-- Require a plan rate ID for all subscriptions.
+ALTER TABLE IF EXISTS subscriptions ALTER COLUMN plan_rate_id SET NOT NULL;
 
 COMMIT;

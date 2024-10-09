@@ -7,7 +7,7 @@ BEGIN;
 SET search_path = public, pg_catalog;
 
 -- Drop the plan_rate_id column from the subscriptions table;
-ALTER TABLE subscriptions DROP COLUMN IF EXISTS plan_rate_id;
+ALTER TABLE IF EXISTS subscriptions DROP COLUMN IF EXISTS plan_rate_id;
 
 -- Drop the plan_rates table.
 DROP TABLE IF EXISTS plan_rates;
@@ -31,6 +31,6 @@ ON plan_quota_defaults (resource_type_id, plan_id);
 
 -- Drop the effective_date column from the plan_quota_defaults table. This is done as close to the end of the migration
 -- as possible becuase removing the column makes one of the previous migration steps non-idempotent.
-ALTER TABLE plan_quota_defaults DROP COLUMN IF EXISTS effective_date;
+ALTER TABLE IF EXISTS plan_quota_defaults DROP COLUMN IF EXISTS effective_date;
 
 COMMIT;
