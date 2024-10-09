@@ -23,4 +23,12 @@ INSERT INTO addon_rates (id, addon_id, effective_date, rate) VALUES
 ('d612d958-82ad-11ef-b4b2-5a8d7f4f1112', 'c21dd61f-aa41-40ad-8005-859679ceed9c', '2022-01-01', 125.00)
 ON CONFLICT (id) DO NOTHING;
 
+-- Add the addon_rate_id column to the subscription_addons table.
+ALTER TABLE IF EXISTS subscription_addons
+    ADD COLUMN IF NOT EXISTS addon_rate_id uuid REFERENCES addon_rates(id) ON DELETE CASCADE;
+UPDATE subscription_addons SET addon_rate_id = (
+    SELECT id FROM addon_rates WHERE addon_id = subscription_addons.addon_id LIMIT 1
+);
+ALTER TABLE IF EXISTS subscription_addons ALTER COLUMN addon_rate_id SET NOT NULL;
+
 COMMIT;
