@@ -31,3 +31,6 @@ swagger.json
 jobservices.yml
 jobservices.yaml
 dotenv
+
+# Ignore .env files.
+.env
