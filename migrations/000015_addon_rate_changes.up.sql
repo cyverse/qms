@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS addon_rates (
     id uuid NOT NULL default uuid_generate_v1(),
     addon_id uuid NOT NULL,
     effective_date timestamp WITH time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    rate money NOT NULL,
+    rate numeric NOT NULL,
     FOREIGN KEY (addon_id) REFERENCES addons(id) ON DELETE CASCADE,
     PRIMARY KEY (id)
 );

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS plan_rates (
     id uuid NOT NULL DEFAULT uuid_generate_v1(),
     plan_id uuid NOT NULL,
     effective_date timestamp WITH time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    rate money NOT NULL,
+    rate numeric NOT NULL,
     FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
     PRIMARY KEY (id)
 );
