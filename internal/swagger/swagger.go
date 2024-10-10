@@ -16,7 +16,6 @@
 package swagger
 
 import (
-	"github.com/cyverse/qms/internal/controllers"
 	"github.com/cyverse/qms/internal/httpmodel"
 	"github.com/cyverse/qms/internal/model"
 )
@@ -319,13 +318,6 @@ type AddPlans struct {
 	//
 	// in: body
 	Body httpmodel.NewPlan
-}
-
-type AddPlanQuotaDefaults struct {
-	// The planQuotaDefault information
-	//
-	// in: body
-	Body controllers.PlanQuotaDefaultValues
 }
 
 // Users
