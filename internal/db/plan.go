@@ -23,6 +23,9 @@ func GetPlan(ctx context.Context, db *gorm.DB, planName string) (*model.Plan, er
 		Where("name=?", planName).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
+		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		First(&plan).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
@@ -43,6 +46,9 @@ func GetPlanByID(ctx context.Context, db *gorm.DB, planID string) (*model.Plan, 
 		WithContext(ctx).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
+		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		First(&plan).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
@@ -65,6 +71,9 @@ func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 		WithContext(ctx).
 		Preload("PlanQuotaDefaults").
 		Preload("PlanQuotaDefaults.ResourceType").
+		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		Find(&plans).Error
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)

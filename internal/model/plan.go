@@ -23,6 +23,21 @@ type Plan struct {
 
 	// The default quota values associated with the plan
 	PlanQuotaDefaults []PlanQuotaDefault `json:"plan_quota_defaults,omitempty"`
+
+	// The rates associated with the plan.
+	PlanRates []PlanRate `json:"plan_rates,omitempty"`
+}
+
+// GetCurrentRate returns the current rate associated with the plan.
+func (p *Plan) GetCurrentRate() float64 {
+	var rate float64
+	currentDate := time.Now()
+	for _, planRate := range p.PlanRates {
+		if !planRate.EffectiveDate.After(currentDate) {
+			rate = planRate.Rate
+		}
+	}
+	return rate
 }
 
 // GetDefaultQuotaValue returns the default quota value associated with the resource type with the given name.
@@ -59,6 +74,30 @@ type PlanQuotaDefault struct {
 	//
 	// required: true
 	ResourceType ResourceType `json:"resource_type,omitempty"`
+
+	// The effective date
+	//
+	// required: true
+	EffectiveDate time.Time `json:"effective_date,omitempty"`
+}
+
+// PlanRates
+//
+// swagger:model
+type PlanRate struct {
+	// The plan rate identifier
+	//
+	// readOnly: true
+	ID *string `gorm:"type:uuid;default:uuid_generate_v1()" json:"id,omitempty"`
+
+	// The plan ID
+	PlanID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The date that the plan rate becomes effective
+	EffectiveDate time.Time `json:"effective_date,omitempty"`
+
+	// The rate
+	Rate float64 `gorm:"type:decimal(10,2)"`
 }
 
 // Subscription define the structure for the API subscription.

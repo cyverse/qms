@@ -133,7 +133,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	}
 
 	log = log.WithFields(logrus.Fields{"plan": plan.Name})
-	log.Debug("adding plan to the database")
+	log.Debugf("adding a new plan to the database: %+v", plan)
 
 	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
@@ -152,8 +152,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 
 			log.Debugf("adding plan quota default resource %s to plan %s", resourceType.Name, plan.Name)
 		}
-
-		log.Debug("adding plan to the database")
+		log.Debugf("translated plan: %+v", dbPlan)
 
 		// Add the plan to the database.
 		err := tx.WithContext(context).Create(&dbPlan).Error

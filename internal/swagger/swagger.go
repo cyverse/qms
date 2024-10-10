@@ -311,8 +311,11 @@ type PlanResponseWrapper struct {
 	}
 }
 
+// Incoming Plan Information
+//
+// swagger:parameters addPlan
 type AddPlans struct {
-	// The Add Plans information
+	// The plan details
 	//
 	// in: body
 	Body httpmodel.NewPlan
