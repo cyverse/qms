@@ -157,3 +157,96 @@ func (s Server) AddPlan(ctx echo.Context) error {
 		return model.SuccessMessage(ctx, "Success", http.StatusOK)
 	})
 }
+
+// AddPlanQuotaDefaults adds quota defaults to an exisitng subscription plan.
+//
+// swagger:route POST /plans/{plan_id}/quota-defaults plans addPlanQuotaDefaults
+//
+// # Add Plan Quota Default Values
+//
+// Adds quota default values to an existing plan. The existing quota default values for the plan will be left in
+// place. The effective quota default value for a specific subscription plan for a specific resource type is always the
+// quota default for that resource type with the most recent effective date not greater than the current date.
+//
+// Responses:
+//
+//	200: planReponse
+//	400: badRequestResponse
+//	404: notFoundResponse
+//	500: internalServerErrorResponse
+func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
+	var err error
+
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Initialize the logger and log a message indicating that the plan is being updated.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "adding plan quota defaults",
+			"plan_id": planID,
+		},
+	)
+	log.Info("adding quota defaults to an existing plan")
+
+	// Parse and validate the request body.
+	var planQuotaDefaultList httpmodel.NewPlanQuotaDefaultList
+	if err = ctx.Bind(&planQuotaDefaultList); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+
+	}
+
+	// Begin a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		context := ctx.Request().Context()
+
+		// Verify that the plan exists.
+		plan, err := db.GetPlanByID(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
+		}
+
+		// Convert the request body to the equivalent database model and insert the plan ID into each object.
+		planQuotaDefaults := planQuotaDefaultList.ToDBModel()
+		for _, pqd := range planQuotaDefaults {
+			pqd.PlanID = &planID
+		}
+
+		// Retireve the list of resource types from the database.
+		resourceTypeList, err := db.ListResourceTypes(context, tx)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Plug the actual resource types into each plan quota default.
+		for _, pqd := range planQuotaDefaults {
+			rt, err := resourceTypeList.GetResourceTypeByName(pqd.ResourceType.Name)
+			if err != nil {
+				return model.Error(ctx, err.Error(), http.StatusBadRequest)
+			}
+			pqd.ResourceType = *rt
+		}
+
+		// Save the list of resource types
+		err = db.SavePlanQuotaDefaults(context, tx, planQuotaDefaults)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Look up the plan with the new plan quota defaults included and return it in the response.
+		plan, err = db.GetPlanByID(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found after saving it", planID)
+			return model.Error(ctx, msg, http.StatusInternalServerError)
+		}
+		return model.Success(ctx, plan, http.StatusOK)
+	})
+}

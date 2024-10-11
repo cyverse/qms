@@ -1,9 +1,30 @@
 package model
 
+import "fmt"
+
 const (
 	RESOURCE_TYPE_CPU_HOURS = "cpu.hours"
 	RESOURCE_TYPE_DATA_SIZE = "data.size"
 )
+
+// ResourceTypeList represents a list of resource types.
+//
+// swagger:model
+type ResourceTypeList struct {
+
+	// The list of resource types
+	ResourceTypes []*ResourceType `json:"resource_types"`
+}
+
+// GetResourceTypeByName returns the resource type from a resource type list with the given name.
+func (rtl *ResourceTypeList) GetResourceTypeByName(name string) (*ResourceType, error) {
+	for _, rt := range rtl.ResourceTypes {
+		if rt.Name == name {
+			return rt, nil
+		}
+	}
+	return nil, fmt.Errorf("resoure type %s not found", name)
+}
 
 // ResourceType defines the structure for ResourceTypes.
 //

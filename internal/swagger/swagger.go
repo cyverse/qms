@@ -320,6 +320,23 @@ type AddPlans struct {
 	Body httpmodel.NewPlan
 }
 
+// Adding Quota Defaults to a Plan
+//
+// swagger:parameters addPlanQuotaDefaults
+type AddPlanQuotaDefaultsParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required:true
+	PlanID string `json:"plan_id"`
+
+	// The plan quota default values
+	//
+	// in: body
+	Body httpmodel.NewPlanQuotaDefaultList
+}
+
 // Users
 
 // User Listing

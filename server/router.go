@@ -76,6 +76,9 @@ func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
 
 	// Gets the details of a plan by its UUID.
 	plans.GET("/:plan_id", s.GetPlanByID)
+
+	// Adds quota defaults to an existing plan.
+	plans.POST(":plan_id/quota-defaults", s.AddPlanQuotaDefaults)
 }
 
 func registerResourceTypeEndpoints(resourceTypes *echo.Group, s *controllers.Server) {

@@ -86,6 +86,44 @@ func (p NewPlan) ToDBModel() model.Plan {
 	}
 }
 
+// NewPlanQuotaDefaultList
+//
+// swagger:model
+type NewPlanQuotaDefaultList struct {
+
+	// The list of plan quota default values.
+	//
+	// required: true
+	PlanQuotaDefaults []NewPlanQuotaDefault `json:"plan_quota_defaults"`
+}
+
+// Validate verifies that all of the required fields in each quota default are present.
+func (pqdl NewPlanQuotaDefaultList) Validate() error {
+
+	// Validate each of the quota default values.
+	for _, d := range pqdl.PlanQuotaDefaults {
+		err := d.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ToDBModel converts a list of plan quota defaults to their equivalent database models and returns them without the
+// wrapper object.
+func (pqdl NewPlanQuotaDefaultList) ToDBModel() []model.PlanQuotaDefault {
+
+	// Convert each of the plan quota defaults.
+	planQuotaDefaults := make([]model.PlanQuotaDefault, len(pqdl.PlanQuotaDefaults))
+	for i, planQuotaDefault := range pqdl.PlanQuotaDefaults {
+		planQuotaDefaults[i] = planQuotaDefault.ToDBModel()
+	}
+
+	return planQuotaDefaults
+}
+
 // NewPlanQuotaDefault
 //
 // swagger:model

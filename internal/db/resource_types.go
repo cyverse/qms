@@ -24,3 +24,17 @@ func GetResourceTypeByName(ctx context.Context, db *gorm.DB, name string) (*mode
 
 	return &resourceType, nil
 }
+
+// ListResourceTypes lists all of the resource types defined in the database.
+func ListResourceTypes(ctx context.Context, db *gorm.DB) (*model.ResourceTypeList, error) {
+	wrapMsg := "unable to list resource types"
+	var err error
+
+	var resourceTypes []*model.ResourceType
+	err = db.WithContext(ctx).Find(&resourceTypes).Error
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
+
+	return &model.ResourceTypeList{ResourceTypes: resourceTypes}, nil
+}

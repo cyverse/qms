@@ -83,7 +83,7 @@ func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 }
 
 func GetDefaultQuotaForPlan(ctx context.Context, db *gorm.DB, planID string) ([]model.PlanQuotaDefault, error) {
-	wrapMsg := "unable to look up plan name "
+	wrapMsg := "unable to look up plan name"
 	var err error
 
 	var planQuotaDefaults []model.PlanQuotaDefault
@@ -110,4 +110,15 @@ func GetPlansByName(ctx context.Context, db *gorm.DB) (map[string]*model.Plan, e
 	}
 
 	return result, nil
+}
+
+func SavePlanQuotaDefaults(ctx context.Context, db *gorm.DB, planQuotaDefaults []model.PlanQuotaDefault) error {
+	wrapMsg := "unable to save the plan quota defaults"
+
+	err := db.Create(planQuotaDefaults).Error
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	return nil
 }
