@@ -170,7 +170,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 //
 // Responses:
 //
-//	200: planReponse
+//	200: planResponse
 //	400: badRequestResponse
 //	404: notFoundResponse
 //	500: internalServerErrorResponse
