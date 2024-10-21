@@ -192,13 +192,13 @@ type ListSubscriptionsParameters struct {
 
 	// The sort field to use for the listing
 	//
-	// enum: username,start-date,end-date
+	// enum: ["username","start-date","end-date"]
 	// in: query
 	SortField string `json:"sort-field"`
 
 	// The sort direction to use for the listing
 	//
-	// enum: asc,desc
+	// enum: ["asc","desc"]
 	// in: query
 	SortDir string `json:"sort-dir"`
 
