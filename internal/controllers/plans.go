@@ -214,8 +214,8 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 
 		// Convert the request body to the equivalent database model and insert the plan ID into each object.
 		planQuotaDefaults := planQuotaDefaultList.ToDBModel()
-		for _, pqd := range planQuotaDefaults {
-			pqd.PlanID = &planID
+		for i := range planQuotaDefaults {
+			planQuotaDefaults[i].PlanID = &planID
 		}
 
 		// Retireve the list of resource types from the database.
@@ -225,12 +225,12 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 		}
 
 		// Plug the actual resource types into each plan quota default.
-		for _, pqd := range planQuotaDefaults {
+		for i, pqd := range planQuotaDefaults {
 			rt, err := resourceTypeList.GetResourceTypeByName(pqd.ResourceType.Name)
 			if err != nil {
 				return model.Error(ctx, err.Error(), http.StatusBadRequest)
 			}
-			pqd.ResourceType = *rt
+			planQuotaDefaults[i].ResourceType = *rt
 		}
 
 		// Save the list of resource types
