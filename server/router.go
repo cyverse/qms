@@ -77,8 +77,17 @@ func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
 	// Gets the details of a plan by its UUID.
 	plans.GET("/:plan_id", s.GetPlanByID)
 
+	// Reports the active rate for a plan.
+	plans.GET("/:plan_id/active-rate", s.GetActivePlanRate)
+
+	// Reports the active quota defaults for a plan.
+	plans.GET("/:plan_id/active-quota-defaults", s.GetActiveQuotaDefaults)
+
 	// Adds quota defaults to an existing plan.
 	plans.POST("/:plan_id/quota-defaults", s.AddPlanQuotaDefaults)
+
+	// Adds rates to an existing plan.
+	plans.POST("/:plan_id/rates" s.AddPlanRates)
 }
 
 func registerResourceTypeEndpoints(resourceTypes *echo.Group, s *controllers.Server) {

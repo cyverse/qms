@@ -158,6 +158,20 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	})
 }
 
+// GetActivePlanRate reports the active rate for an exisitng subscription plan.
+//
+// TODO: Implement me.
+func (s Server) GetActivePlanRate(ctx echo.Context) error {
+	return nil
+}
+
+// GetActiveQuotaDefaults reports the active quota defaults for an existing subscription plan.
+//
+// TODO: Implement me.
+func (s Server) GetActiveQuotaDefaults(ctx echo.Context) error {
+	return nil
+}
+
 // AddPlanQuotaDefaults adds quota defaults to an exisitng subscription plan.
 //
 // swagger:route POST /plans/{plan_id}/quota-defaults plans addPlanQuotaDefaults
@@ -249,4 +263,11 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 		}
 		return model.Success(ctx, plan, http.StatusOK)
 	})
+}
+
+// AddRates adds rates to an existing subscription plan.
+//
+// TODO: Implement me.
+func (s Server) AddPlanRates(ctx echo.Context) error {
+	return nil
 }
