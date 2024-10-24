@@ -242,3 +242,38 @@ func (pr NewPlanRate) ToDBModel() model.PlanRate {
 		Rate:          pr.Rate,
 	}
 }
+
+// NewPlanRateList
+//
+// swagger:model
+type NewPlanRateList struct {
+
+	// The list of plan rates.
+	//
+	// required: true
+	PlanRates []NewPlanRate `json:"plan_rates"`
+}
+
+func (prl *NewPlanRateList) Validate() error {
+
+	// Validate each of the plan rates.
+	for _, pr := range prl.PlanRates {
+		err := pr.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (prl *NewPlanRateList) ToDBModel() []model.PlanRate {
+
+	// Convert each plan rate in the list to its corresponding database model.
+	planRates := make([]model.PlanRate, len(prl.PlanRates))
+	for i, pr := range prl.PlanRates {
+		planRates[i] = pr.ToDBModel()
+	}
+
+	return planRates
+}

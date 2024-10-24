@@ -101,6 +101,27 @@ func GetActivePlanRate(ctx context.Context, db *gorm.DB, planID string) (*model.
 	return &planRate, nil
 }
 
+// GetActivePlanQuotaDefaults returns the currently active quota defaults for a subscription plan.
+func GetActivePlanQuotaDefaults(ctx context.Context, db *gorm.DB, planID string) ([]model.PlanQuotaDefault, error) {
+	wrapMsg := fmt.Sprintf("unable to look up the active plan quota defaults for '%s'", planID)
+	var err error
+
+	var planQuotaDefaults []model.PlanQuotaDefault
+	err = db.
+		WithContext(ctx).
+		Select("DISTINCT ON (resource_type_id) resource_type_id", "id", "plan_id", "quota_value", "effective_date").
+		Where("effective_date <= CURRENT_TIMESTAMP AND plan_id = ?", planID).
+		Order("resource_type_id").
+		Order("effective_date desc").
+		Find(&planQuotaDefaults).
+		Error
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
+
+	return planQuotaDefaults, nil
+}
+
 // ListPlans lists all of the plans that are currently available.
 func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 	wrapMsg := "unable to list plans"
@@ -157,6 +178,17 @@ func SavePlanQuotaDefaults(ctx context.Context, db *gorm.DB, planQuotaDefaults [
 	wrapMsg := "unable to save the plan quota defaults"
 
 	err := db.Create(planQuotaDefaults).Error
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	return nil
+}
+
+func SavePlanRates(ctx context.Context, db *gorm.DB, planRates []model.PlanRate) error {
+	wrapMsg := "unable to save the plan rates"
+
+	err := db.Create(planRates).Error
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}

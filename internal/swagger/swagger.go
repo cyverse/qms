@@ -341,8 +341,32 @@ type ActivePlanRateResponseWrapper struct {
 	Body struct {
 		ResponseBodyWrapper
 
-		// The plan rate information.
+		// The plan rate information
 		Body model.PlanRate
+	}
+}
+
+// Getting Active Quota Defaults for a Plan
+//
+// swagger:parameters getPlanActiveQuotaDefaults
+type GetPlanActiveQuotaDefaultsParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required: true
+	PlanID string `json:"plan_id"`
+}
+
+// Plan Quota Default Information
+type ActivePlanQuotaDefaultsResponseWrapper struct {
+
+	// in: body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The plan quota default information
+		Body []model.PlanQuotaDefault
 	}
 }
 
@@ -361,6 +385,23 @@ type AddPlanQuotaDefaultsParameters struct {
 	//
 	// in: body
 	Body httpmodel.NewPlanQuotaDefaultList
+}
+
+// Adding Rates to a Plan
+//
+// swagger:parameters addPlanRates
+type AddPlanRatesParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required:true
+	PlanID string `json:"plan_id"`
+
+	// The plan rates
+	//
+	// in: body
+	Body httpmodel.NewPlanRateList
 }
 
 // Users
