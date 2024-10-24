@@ -36,9 +36,29 @@ func GetPlan(ctx context.Context, db *gorm.DB, planName string) (*model.Plan, er
 	return &plan, nil
 }
 
+// PlanExists determines whether or not a subscription plan with the given identifier exists.
+func CheckPlanExistence(ctx context.Context, db *gorm.DB, planID string) (bool, error) {
+	wrapMsg := fmt.Sprintf("unable to look up plan ID '%s'", planID)
+	var err error
+
+	var exists bool
+	var plan = model.Plan{}
+	err = db.Model(plan).
+		Select("count(*) > 0").
+		Where("id = ?", planID).
+		Find(&exists).
+		Error
+
+	// Return the result.
+	if err != nil {
+		return false, errors.Wrap(err, wrapMsg)
+	}
+	return exists, nil
+}
+
 // GetPlanByID looks up the plan with the given identifier.
 func GetPlanByID(ctx context.Context, db *gorm.DB, planID string) (*model.Plan, error) {
-	wrapMsg := fmt.Sprintf("unable to look up plan ID `%s'", planID)
+	wrapMsg := fmt.Sprintf("unable to look up plan ID '%s'", planID)
 	var err error
 
 	plan := model.Plan{ID: &planID}
@@ -58,6 +78,27 @@ func GetPlanByID(ctx context.Context, db *gorm.DB, planID string) (*model.Plan, 
 	}
 
 	return &plan, nil
+}
+
+// GetActivePlanRate returns the currently active rate for a subscription plan.
+func GetActivePlanRate(ctx context.Context, db *gorm.DB, planID string) (*model.PlanRate, error) {
+	wrapMsg := fmt.Sprintf("unable to look up the active plan rate for '%s'", planID)
+	var err error
+
+	planRate := model.PlanRate{PlanID: &planID}
+	err = db.
+		WithContext(ctx).
+		Where("effective_date <= CURRENT_TIMESTAMP").
+		Order("effective_date desc").
+		Limit(1).
+		Find(&planRate).
+		Error
+
+	// Return the result.
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
+	return &planRate, nil
 }
 
 // ListPlans lists all of the plans that are currently available.

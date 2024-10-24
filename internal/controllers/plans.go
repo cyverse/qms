@@ -160,9 +160,58 @@ func (s Server) AddPlan(ctx echo.Context) error {
 
 // GetActivePlanRate reports the active rate for an exisitng subscription plan.
 //
-// TODO: Implement me.
+// swagger:route GET /plans/{plan_id}/active-rate plans getPlanActiveRate
+//
+// # Get Active Rate for a Plan
+//
+// Returns the active rate for a plan. The active plan rate is the rate associated with teh selected plan with the most
+// recent effective date that is before the current date.
+//
+// Responses:
+//
+//	200: activePlanRateResponse
+//	400: badRequestResponse
+//	404: notFoundResponse
+//	500: internalServerErrorResponse
 func (s Server) GetActivePlanRate(ctx echo.Context) error {
-	return nil
+	var err error
+
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Initialize the logger and log a message indicating what is being done.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "getting active plan rate",
+			"plan_id": planID,
+		},
+	)
+	log.Info("getting the active rate for a plan")
+
+	// Begin a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		context := ctx.Request().Context()
+
+		// Verify that the plan exists.
+		exists, err := db.CheckPlanExistence(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if !exists {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
+		}
+
+		// Look up the active plan rate.
+		activePlanRate, err := db.GetActivePlanRate(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		return model.Success(ctx, activePlanRate, http.StatusOK)
+	})
 }
 
 // GetActiveQuotaDefaults reports the active quota defaults for an existing subscription plan.
@@ -218,10 +267,10 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 		context := ctx.Request().Context()
 
 		// Verify that the plan exists.
-		plan, err := db.GetPlanByID(context, tx, planID)
+		exists, err := db.CheckPlanExistence(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		} else if plan == nil {
+		} else if !exists {
 			msg := fmt.Sprintf("plan ID %s not found", planID)
 			return model.Error(ctx, msg, http.StatusNotFound)
 		}
@@ -254,7 +303,7 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 		}
 
 		// Look up the plan with the new plan quota defaults included and return it in the response.
-		plan, err = db.GetPlanByID(context, tx, planID)
+		plan, err := db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		} else if plan == nil {

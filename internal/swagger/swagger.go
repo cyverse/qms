@@ -320,6 +320,32 @@ type AddPlans struct {
 	Body httpmodel.NewPlan
 }
 
+// Getting the Active Rate for a Plan
+//
+// swagger:parameters getPlanActiveRate
+type GetPlanActiveRateParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required: true
+	PlanID string `json:"plan_id"`
+}
+
+// Plan Rate Information
+//
+// swagger:response activePlanRateResponse
+type ActivePlanRateResponseWrapper struct {
+
+	// in: body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The plan rate information.
+		Body model.PlanRate
+	}
+}
+
 // Adding Quota Defaults to a Plan
 //
 // swagger:parameters addPlanQuotaDefaults

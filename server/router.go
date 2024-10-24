@@ -87,7 +87,7 @@ func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
 	plans.POST("/:plan_id/quota-defaults", s.AddPlanQuotaDefaults)
 
 	// Adds rates to an existing plan.
-	plans.POST("/:plan_id/rates" s.AddPlanRates)
+	plans.POST("/:plan_id/rates", s.AddPlanRates)
 }
 
 func registerResourceTypeEndpoints(resourceTypes *echo.Group, s *controllers.Server) {
