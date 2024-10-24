@@ -359,6 +359,8 @@ type GetPlanActiveQuotaDefaultsParameters struct {
 }
 
 // Plan Quota Default Information
+//
+// swagger:response activePlanQuotaDefaultsResponse
 type ActivePlanQuotaDefaultsResponseWrapper struct {
 
 	// in: body
