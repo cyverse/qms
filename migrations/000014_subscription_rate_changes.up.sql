@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS plan_rates (
     PRIMARY KEY (id)
 );
 
+-- There can only be one rate for each subscription plan that can become effective at a specific time.
+CREATE UNIQUE INDEX IF NOT EXISTS plan_rates_plan_effective_date_index
+    ON plan_rates (plan_id, effective_date);
+
 -- Populate the plan_rates table with initial values. This could cause a problem if this isn't the exact set of plans,
 -- but the changes of having a different set of plans in any DE deployment at this point in time is small because the
 -- subscription admin pages don't currently have a feature to allow administrators to add or remove subscription plans.
@@ -33,6 +37,11 @@ DROP INDEX IF EXISTS plan_quota_defaults_resource_type_plan_index;
 ALTER TABLE IF EXISTS plan_quota_defaults ADD COLUMN effective_date timestamp WITH time zone;
 UPDATE plan_quota_defaults SET effective_date = '2022-01-01';
 ALTER TABLE IF EXISTS plan_quota_defaults ALTER COLUMN effective_date SET NOT NULL;
+
+-- Ensure that no two plan quota default values for the same plan have both the same resource type and effective date.
+CREATE UNIQUE INDEX IF NOT EXISTS plan_quota_defaults_resource_type_plan_effective_date_index
+    ON plan_quota_defaults (resource_type_id, effective_date, plan_id);
+
 
 -- Add the plan rate ID column to the subscriptions table.
 ALTER TABLE IF EXISTS subscriptions

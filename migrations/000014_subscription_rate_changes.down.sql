@@ -25,6 +25,9 @@ WHERE keepers.plan_id = pqd.plan_id
 AND keepers.resource_type_id = pqd.resource_type_id
 AND keepers.most_recent_date != pqd.effective_date;
 
+-- Remove the plan_quota_defaults unique key on plan_id, resource_type_id, and effective_date.
+DROP INDEX IF EXISTS plan_quota_defaults_resource_type_plan_effective_date_index;
+
 -- Add the plan_quota_defaults unique key on plan_id and resource_type_id.
 CREATE UNIQUE INDEX IF NOT EXISTS plan_quota_defaults_resource_type_plan_index
 ON plan_quota_defaults (resource_type_id, plan_id);

@@ -23,6 +23,10 @@ INSERT INTO addon_rates (id, addon_id, effective_date, rate) VALUES
 ('d612d958-82ad-11ef-b4b2-5a8d7f4f1112', 'c21dd61f-aa41-40ad-8005-859679ceed9c', '2022-01-01', 125.00)
 ON CONFLICT (id) DO NOTHING;
 
+-- There can only be one rate for each subscription addon that can become effective at a specific time.
+CREATE UNIQUE INDEX IF NOT EXISTS addon_rates_effective_date_addon_index
+    ON addon_rates(addon_id, effective_date);
+
 -- Add the addon_rate_id column to the subscription_addons table.
 ALTER TABLE IF EXISTS subscription_addons
     ADD COLUMN IF NOT EXISTS addon_rate_id uuid REFERENCES addon_rates(id) ON DELETE CASCADE;
