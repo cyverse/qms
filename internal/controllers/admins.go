@@ -24,6 +24,7 @@ func (s Server) GetAllActiveSubscriptions(ctx echo.Context) error {
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Preload("PlanRate").
 		Where(
 			s.GORMDB.WithContext(context).
 				Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").

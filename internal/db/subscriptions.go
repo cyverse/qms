@@ -12,20 +12,29 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan. This function assumes that the
-// given plan already contains the plan quota defaults.
+// QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan.
 func QuotasFromPlan(plan *model.Plan, periods int32) []model.Quota {
-	result := make([]model.Quota, len(plan.PlanQuotaDefaults))
-	for i, quotaDefault := range plan.PlanQuotaDefaults {
+
+	// Get the active plan quota defaults from the plan.
+	pqds := plan.GetDefaultQuotaValues()
+
+	// Build the array of quotas.
+	result := make([]model.Quota, len(pqds))
+
+	// Populate the quotas.
+	currentIndex := 0
+	for _, quotaDefault := range pqds {
 		quotaValue := quotaDefault.QuotaValue
 		if quotaDefault.ResourceType.Consumable {
 			quotaValue *= float64(periods)
 		}
-		result[i] = model.Quota{
+		result[currentIndex] = model.Quota{
 			Quota:          quotaValue,
 			ResourceTypeID: quotaDefault.ResourceTypeID,
 		}
+		currentIndex++
 	}
+
 	return result
 }
 
@@ -35,6 +44,12 @@ func SubscribeUserToPlan(
 ) (*model.Subscription, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
+
+	// Look up the active plan rate.
+	planRate, err := plan.GetActivePlanRate()
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
 
 	// Define the user plan.
 	effectiveStartDate := time.Now()
@@ -46,6 +61,7 @@ func SubscribeUserToPlan(
 		PlanID:             plan.ID,
 		Quotas:             QuotasFromPlan(plan, opts.GetPeriods()),
 		Paid:               opts.IsPaid(),
+		PlanRateID:         planRate.ID,
 	}
 	err = db.WithContext(ctx).Create(&subscription).Error
 	if err != nil {
@@ -148,6 +164,7 @@ func GetSubscriptionDetails(ctx context.Context, db *gorm.DB, subscriptionID str
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Preload("PlanRate").
 		Where("id = ?", subscriptionID).
 		First(&subscription).
 		Error
@@ -201,6 +218,7 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Preload("PlanRate").
 		Where(
 			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
 				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),

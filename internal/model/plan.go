@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -28,28 +29,63 @@ type Plan struct {
 	PlanRates []PlanRate `json:"plan_rates,omitempty"`
 }
 
-// GetCurrentRate returns the current rate associated with the plan.
-func (p *Plan) GetCurrentRate() float64 {
-	var rate float64
-	currentDate := time.Now()
-	for _, planRate := range p.PlanRates {
-		if !planRate.EffectiveDate.After(currentDate) {
-			rate = planRate.Rate
-		}
-	}
-	return rate
-}
+// Returns the currently active rate for a subscription plan. The active plan rate is the plan with the most recent
+// effective timestamp that occurs at or befor the curren time. This function assumes that the plan quota defaults are
+// sorted in ascending order by effective date.
+func (p *Plan) GetActivePlanRate() (*PlanRate, error) {
+	currentTime := time.Now()
 
-// GetDefaultQuotaValue returns the default quota value associated with the resource type with the given name.
-func (p *Plan) GetDefaultQuotaValue(resourcetypeName string) float64 {
-	var value float64
-	for _, quotaDefault := range p.PlanQuotaDefaults {
-		if quotaDefault.ResourceType.Name == resourcetypeName {
-			value = quotaDefault.QuotaValue
+	// Find the active plan rate.
+	var activePlanRate *PlanRate
+	for _, pr := range p.PlanRates {
+		if pr.EffectiveDate.After(currentTime) {
 			break
 		}
+		activePlanRate = &pr
 	}
+
+	// It's an error for a plan not to have an active rate.
+	if activePlanRate == nil {
+		return nil, fmt.Errorf("no active rate found for subscription plan %s", *p.ID)
+	}
+
+	return activePlanRate, nil
+}
+
+// GetDefaultQuotaValue returns the default quota value associated with the resource type with the given name. This
+// funciton assumes that the plan quota defaults ar sorted in ascending order by effective date.
+func (p *Plan) GetDefaultQuotaValue(resourcetypeName string) float64 {
+	currentTime := time.Now()
+
+	// Find the active plan quota default value for the given resource type.
+	var value float64
+	for _, quotaDefault := range p.PlanQuotaDefaults {
+		if quotaDefault.EffectiveDate.After(currentTime) {
+			break
+		}
+		if quotaDefault.ResourceType.Name == resourcetypeName {
+			value = quotaDefault.QuotaValue
+		}
+	}
+
 	return value
+}
+
+// GetActiveQuotaValues returns the active quota values for a plan. This function assumes that the plan quota defaults
+// are sorted in ascending order by effective date.
+func (p *Plan) GetDefaultQuotaValues() map[string]*PlanQuotaDefault {
+	currentTime := time.Now()
+
+	// Find the active plan quota defaults for each resource type.
+	result := make(map[string]*PlanQuotaDefault)
+	for _, planQuotaDefault := range p.PlanQuotaDefaults {
+		if planQuotaDefault.EffectiveDate.After(currentTime) {
+			break
+		}
+		result[planQuotaDefault.ResourceType.Name] = &planQuotaDefault
+	}
+
+	return result
 }
 
 // PlanQuotaDefault define the structure for an Api Plan and Quota.
@@ -135,6 +171,12 @@ type Subscription struct {
 
 	// True if the user paid for the subscription.
 	Paid bool `json:"paid"`
+
+	// The ID of the plan rate at the time the subscription was created.
+	PlanRateID *string `gorm:"type:uuid;not null" json:"-"`
+
+	// The plan rate at the time the subscription was created.
+	PlanRate *PlanRate `json:"plan_rate,omitempty"`
 }
 
 // GetCurrentUsageValue returns the current usage value for the resource type with the given resource type ID. Be
