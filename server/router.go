@@ -45,9 +45,6 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Lists all of the users.
 	users.GET("", s.GetAllUsers)
 
-	// Lists all of the active user plans.
-	users.GET("/all_active_users", s.GetAllActiveSubscriptions)
-
 	// Adds a new user to the database.
 	users.PUT("/:username", s.AddUser)
 
