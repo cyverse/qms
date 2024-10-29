@@ -419,7 +419,7 @@ func (s Server) AddPlanRates(ctx echo.Context) error {
 		planRates := planRateList.ToDBModel()
 
 		// Plug the plan ID into each of the plan rates.
-		for i, _ := range planRates {
+		for i := range planRates {
 			planRates[i].PlanID = &planID
 		}
 
