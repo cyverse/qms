@@ -315,6 +315,15 @@ func (prl *NewPlanRateList) Validate() error {
 		}
 	}
 
+	// Check for multiple plan rates with the same effective date.
+	uniquePlanRates := make(map[int64]bool)
+	for _, pr := range prl.PlanRates {
+		if uniquePlanRates[pr.EffectiveDate.UnixMilli()] {
+			return fmt.Errorf("multiple plan rates found with the same effective date")
+		}
+		uniquePlanRates[pr.EffectiveDate.UnixMilli()] = true
+	}
+
 	return nil
 }
 

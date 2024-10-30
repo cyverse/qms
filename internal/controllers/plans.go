@@ -431,6 +431,9 @@ func (s Server) AddPlanRates(ctx echo.Context) error {
 	if err = ctx.Bind(&planRateList); err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+	if err = planRateList.Validate(); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
 
 	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
