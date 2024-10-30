@@ -148,6 +148,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 //   200: resourceTypeDetails
 //   400: badRequestResponse
 //   404: notFoundResponse
+//   409: conflictResponse
 //   500: internalServerErrorResponse
 
 // UpdateResourceType is the handler for the PUT /v1/resource-types/{resource_type_id} endpoint.
