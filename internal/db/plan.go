@@ -21,7 +21,11 @@ func GetPlan(ctx context.Context, db *gorm.DB, planName string) (*model.Plan, er
 	err = db.
 		WithContext(ctx).
 		Where("name=?", planName).
-		Preload("PlanQuotaDefaults").
+		Preload("PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("PlanQuotaDefaults.ResourceType").
 		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
 			return db.Order("effective_date asc")
@@ -36,7 +40,28 @@ func GetPlan(ctx context.Context, db *gorm.DB, planName string) (*model.Plan, er
 	return &plan, nil
 }
 
-// PlanExists determines whether or not a subscription plan with the given identifier exists.
+// CheckPlanNameExistence determines whether or not a subscription plan with a given name exists.
+func CheckPlanNameExistence(ctx context.Context, db *gorm.DB, planName string) (bool, error) {
+	wrapMsg := fmt.Sprintf("unable to look up plan Name `%s`", planName)
+	var err error
+
+	// Query the database.
+	var exists bool
+	var plan = model.Plan{}
+	err = db.Model(plan).
+		Select("count(*) > 0").
+		Where("name = ?", planName).
+		Find(&exists).
+		Error
+
+	// Return the result.
+	if err != nil {
+		return false, errors.Wrap(err, wrapMsg)
+	}
+	return exists, nil
+}
+
+// CheckPlanExistence determines whether or not a subscription plan with the given identifier exists.
 func CheckPlanExistence(ctx context.Context, db *gorm.DB, planID string) (bool, error) {
 	wrapMsg := fmt.Sprintf("unable to look up plan ID '%s'", planID)
 	var err error
@@ -64,7 +89,11 @@ func GetPlanByID(ctx context.Context, db *gorm.DB, planID string) (*model.Plan, 
 	plan := model.Plan{ID: &planID}
 	err = db.
 		WithContext(ctx).
-		Preload("PlanQuotaDefaults").
+		Preload("PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("PlanQuotaDefaults.ResourceType").
 		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
 			return db.Order("effective_date asc")
@@ -131,7 +160,11 @@ func ListPlans(ctx context.Context, db *gorm.DB) ([]*model.Plan, error) {
 	var plans []*model.Plan
 	err = db.
 		WithContext(ctx).
-		Preload("PlanQuotaDefaults").
+		Preload("PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("PlanQuotaDefaults.ResourceType").
 		Preload("PlanRates", func(db *gorm.DB) *gorm.DB {
 			return db.Order("effective_date asc")

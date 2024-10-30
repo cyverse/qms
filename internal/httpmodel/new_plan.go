@@ -10,6 +10,28 @@ import (
 // Note: the names in the comments may deviate a bit from the actual structure names in order to avoid producing
 // confusing Swagger docs.
 
+// A plan quota default key.
+type PlanQuotaDefaultKey struct {
+	ResourceTypeName string
+	EffectiveDate    int64
+}
+
+// KeyFromPlanQuotaDefault generates a plan quota default key from a PlanQuotaDefault object.
+func KeyFromPlanQuotaDefault(planQuotaDefault model.PlanQuotaDefault) PlanQuotaDefaultKey {
+	return PlanQuotaDefaultKey{
+		ResourceTypeName: planQuotaDefault.ResourceType.Name,
+		EffectiveDate:    planQuotaDefault.EffectiveDate.UnixMilli(),
+	}
+}
+
+// KeyFromNewPlanQuotaDefault generates a plan quota defual key from a NewPlanQuotaDefaultObject.
+func KeyFromNewPlanQuotaDefault(newPlanQuotaDefault NewPlanQuotaDefault) PlanQuotaDefaultKey {
+	return PlanQuotaDefaultKey{
+		ResourceTypeName: newPlanQuotaDefault.ResourceType.Name,
+		EffectiveDate:    newPlanQuotaDefault.EffectiveDate.UnixMilli(),
+	}
+}
+
 // NewPlan
 //
 // swagger:model
@@ -52,12 +74,31 @@ func (p NewPlan) Validate() error {
 		}
 	}
 
-	// Validate each of the plan rates.
+	// Verify that the resource type and effective date are unique for all of the plan quota defaults.
+	uniquePlanQuotaDefaults := make(map[PlanQuotaDefaultKey]bool)
+	for _, d := range p.PlanQuotaDefaults {
+		key := KeyFromNewPlanQuotaDefault(d)
+		if uniquePlanQuotaDefaults[key] {
+			return fmt.Errorf("multiple plan quota defaults found with the same resource type and effective date")
+		}
+		uniquePlanQuotaDefaults[key] = true
+	}
+
+	// Verify each of the plan rates.
 	for _, pr := range p.PlanRates {
 		err = pr.Validate()
 		if err != nil {
 			return err
 		}
+	}
+
+	// Verify that the effective date it unique for all of the plan rates.
+	uniquePlanRates := make(map[int64]bool)
+	for _, pr := range p.PlanRates {
+		if uniquePlanRates[pr.EffectiveDate.UnixMilli()] {
+			return fmt.Errorf("multiple plan rates found with the same effective date")
+		}
+		uniquePlanRates[pr.EffectiveDate.UnixMilli()] = true
 	}
 
 	return nil
@@ -106,6 +147,16 @@ func (pqdl NewPlanQuotaDefaultList) Validate() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Verify that the resource type and effective date are unique for all of the plan quota defaults.
+	uniquePlanQuotaDefaults := make(map[PlanQuotaDefaultKey]bool)
+	for _, d := range pqdl.PlanQuotaDefaults {
+		key := KeyFromNewPlanQuotaDefault(d)
+		if uniquePlanQuotaDefaults[key] {
+			return fmt.Errorf("multiple plan quota defaults found with the same resource type and effective date")
+		}
+		uniquePlanQuotaDefaults[key] = true
 	}
 
 	return nil

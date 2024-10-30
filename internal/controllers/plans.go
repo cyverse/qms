@@ -130,6 +130,15 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		dbPlan := plan.ToDBModel()
+
+		// Make sure that a plan with the same name doesn't already exist.
+		planNameExists, err := db.CheckPlanNameExistence(context, tx, plan.Name)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if planNameExists {
+			return model.Error(ctx, fmt.Sprintf("a plan named `%s` already exists", plan.Name), http.StatusBadRequest)
+		}
+
 		// Look up each resource type and update it in the struct.
 		for i, planQuotaDefault := range dbPlan.PlanQuotaDefaults {
 			resourceType, err := db.GetResourceTypeByName(context, tx, planQuotaDefault.ResourceType.Name)
@@ -147,7 +156,7 @@ func (s Server) AddPlan(ctx echo.Context) error {
 		log.Debugf("translated plan: %+v", dbPlan)
 
 		// Add the plan to the database.
-		err := tx.WithContext(context).Create(&dbPlan).Error
+		err = tx.WithContext(context).Create(&dbPlan).Error
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -310,16 +319,19 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 	if err = ctx.Bind(&planQuotaDefaultList); err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
+	if err = planQuotaDefaultList.Validate(); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
 
 	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		context := ctx.Request().Context()
 
 		// Verify that the plan exists.
-		exists, err := db.CheckPlanExistence(context, tx, planID)
+		plan, err := db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		} else if !exists {
+		} else if plan == nil {
 			msg := fmt.Sprintf("plan ID %s not found", planID)
 			return model.Error(ctx, msg, http.StatusNotFound)
 		}
@@ -345,6 +357,24 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 			planQuotaDefaults[i].ResourceType = *rt
 		}
 
+		// Compare the plan quota defaults to existing quota defaults to check for duplicates.
+		existingPlanQuotaDefaults := make(map[httpmodel.PlanQuotaDefaultKey]bool)
+		for _, pqd := range plan.PlanQuotaDefaults {
+			key := httpmodel.KeyFromPlanQuotaDefault(pqd)
+			existingPlanQuotaDefaults[key] = true
+		}
+		for _, pqd := range planQuotaDefaults {
+			key := httpmodel.KeyFromPlanQuotaDefault(pqd)
+			if existingPlanQuotaDefaults[key] {
+				msg := fmt.Sprintf(
+					"plan quota default for resource type %s with effective date %s already exists",
+					pqd.ResourceType.Name,
+					pqd.EffectiveDate,
+				)
+				return model.Error(ctx, msg, http.StatusBadRequest)
+			}
+		}
+
 		// Save the list of plan quota defaults.
 		err = db.SavePlanQuotaDefaults(context, tx, planQuotaDefaults)
 		if err != nil {
@@ -352,7 +382,7 @@ func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 		}
 
 		// Look up the plan with the new plan quota defaults included and return it in the response.
-		plan, err := db.GetPlanByID(context, tx, planID)
+		plan, err = db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		} else if plan == nil {
@@ -407,16 +437,28 @@ func (s Server) AddPlanRates(ctx echo.Context) error {
 		context := ctx.Request().Context()
 
 		// Verify that the plan existws.
-		exists, err := db.CheckPlanExistence(context, tx, planID)
+		plan, err := db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		} else if !exists {
+		} else if plan == nil {
 			msg := fmt.Sprintf("plan ID %s not found", planID)
 			return model.Error(ctx, msg, http.StatusNotFound)
 		}
 
 		// Convert the list of plan rates to the corresponding DB model.
 		planRates := planRateList.ToDBModel()
+
+		// Verify that none of the incoming plan rates duplicate existing plan rates.
+		existingPlanRates := make(map[int64]bool)
+		for _, pr := range plan.PlanRates {
+			existingPlanRates[pr.EffectiveDate.UnixMilli()] = true
+		}
+		for _, pr := range planRates {
+			if existingPlanRates[pr.EffectiveDate.UnixMilli()] {
+				msg := fmt.Sprintf("plan rate with effective date %s already exists", pr.EffectiveDate)
+				return model.Error(ctx, msg, http.StatusBadRequest)
+			}
+		}
 
 		// Plug the plan ID into each of the plan rates.
 		for i := range planRates {
@@ -430,7 +472,7 @@ func (s Server) AddPlanRates(ctx echo.Context) error {
 		}
 
 		// Look up the plan with the new plan quota defaults included and return it in the response.
-		plan, err := db.GetPlanByID(context, tx, planID)
+		plan, err = db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		} else if plan == nil {
