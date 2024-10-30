@@ -54,12 +54,6 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Updates a quota in the user's current subscription plan.
 	users.POST("/:username/plan/:resource-type/quota", s.UpdateCurrentSubscriptionQuota)
 
-	// GET /:username/resources/overages returns summaries of any usages that exceed the quota for the corresponding resource.
-	users.GET("/:username/resources/overages", s.GetUserOverages)
-
-	// GET /:username/resources/:resource-name/overage returns whether the usage exceeds the quota for the resource.
-	users.GET("/:username/resources/:resource-name/in-overage", s.InOverage)
-
 	// Changes the user's current plan to one corresponding to plan name.
 	users.PUT("/:username/:plan_name", s.UpdateSubscription)
 }

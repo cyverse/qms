@@ -36,9 +36,7 @@ require (
 require (
 	github.com/cyverse-de/go-mod/cfg v0.0.2
 	github.com/cyverse-de/go-mod/logging v0.0.3
-	github.com/cyverse-de/go-mod/pbinit v0.1.12
 	github.com/cyverse-de/go-mod/protobufjson v0.0.4
-	github.com/cyverse-de/p/go/qms v0.1.13
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/golang-migrate/migrate/v4 v4.17.1
 	github.com/labstack/echo/v4 v4.12.0
@@ -46,14 +44,6 @@ require (
 )
 
 require (
-	github.com/cyverse-de/go-mod/gotelnats v0.0.12 // indirect
-	github.com/cyverse-de/p v0.0.0-20240820230617-9e063fe10de8 // indirect
-	github.com/cyverse-de/p/go/analysis v0.0.16 // indirect
-	github.com/cyverse-de/p/go/containers v0.0.2 // indirect
-	github.com/cyverse-de/p/go/header v0.0.4 // indirect
-	github.com/cyverse-de/p/go/monitoring v0.0.5 // indirect
-	github.com/cyverse-de/p/go/svcerror v0.0.8 // indirect
-	github.com/cyverse-de/p/go/user v0.0.11 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -66,7 +56,6 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/knadh/koanf v1.5.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -74,9 +63,6 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/nats-io/nats.go v1.37.0 // indirect
-	github.com/nats-io/nkeys v0.4.7 // indirect
-	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1 // indirect
 	go.opentelemetry.io/otel v1.29.0 // indirect
