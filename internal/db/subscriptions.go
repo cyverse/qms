@@ -158,8 +158,15 @@ func GetSubscriptionDetails(ctx context.Context, db *gorm.DB, subscriptionID str
 	err := db.WithContext(ctx).
 		Preload("User").
 		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		Preload("Quotas").
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
@@ -212,8 +219,15 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		Preload("Quotas").
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
