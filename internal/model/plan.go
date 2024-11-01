@@ -53,25 +53,18 @@ func (p *Plan) GetActivePlanRate() (*PlanRate, error) {
 }
 
 // GetDefaultQuotaValue returns the default quota value associated with the resource type with the given name. This
-// funciton assumes that the plan quota defaults ar sorted in ascending order by effective date.
-func (p *Plan) GetDefaultQuotaValue(resourcetypeName string) float64 {
-	currentTime := time.Now()
+// function assumes that the plan quota defaults are sorted in ascending order by effective date.
+func (p *Plan) GetDefaultQuotaValue(resourceTypeName string) float64 {
 
 	// Find the active plan quota default value for the given resource type.
-	var value float64
-	for _, quotaDefault := range p.PlanQuotaDefaults {
-		if quotaDefault.EffectiveDate.After(currentTime) {
-			break
-		}
-		if quotaDefault.ResourceType.Name == resourcetypeName {
-			value = quotaDefault.QuotaValue
-		}
+	pqd := p.GetDefaultQuotaValues()[resourceTypeName]
+	if pqd == nil {
+		return 0
 	}
-
-	return value
+	return pqd.QuotaValue
 }
 
-// GetActiveQuotaValues returns the active quota values for a plan. This function assumes that the plan quota defaults
+// GetDefaultQuotaValues returns the active quota values for a plan. This function assumes that the plan quota defaults
 // are sorted in ascending order by effective date.
 func (p *Plan) GetDefaultQuotaValues() map[string]*PlanQuotaDefault {
 	currentTime := time.Now()
