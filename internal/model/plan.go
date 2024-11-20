@@ -126,7 +126,7 @@ type PlanRate struct {
 	EffectiveDate time.Time `json:"effective_date,omitempty"`
 
 	// The rate
-	Rate float64 `gorm:"type:decimal(10,2)"`
+	Rate float64 `gorm:"type:decimal(10,2)" json:"rate"`
 }
 
 // Subscription define the structure for the API subscription.
