@@ -171,7 +171,7 @@ type SubscriptionsResponse struct {
 		ResponseBodyWrapper
 
 		// The list of subscription responses
-		Result []model.SubscriptionResponse
+		Result []model.SubscriptionResponse `json:"result"`
 	}
 }
 
@@ -218,7 +218,7 @@ type SubscriptionListing struct {
 		ResponseBodyWrapper
 
 		// The list of subscriptions
-		Result []model.SubscriptionListing
+		Result []model.SubscriptionListing `json:"result"`
 	}
 }
 
@@ -266,7 +266,7 @@ type Subscription struct {
 		ResponseBodyWrapper
 
 		// The subscription details.
-		Result model.Subscription
+		Result model.Subscription `json:"result"`
 	}
 }
 
@@ -342,7 +342,7 @@ type ActivePlanRateResponseWrapper struct {
 		ResponseBodyWrapper
 
 		// The plan rate information
-		Body model.PlanRate
+		Result model.PlanRate `json:"result"`
 	}
 }
 
@@ -368,7 +368,7 @@ type ActivePlanQuotaDefaultsResponseWrapper struct {
 		ResponseBodyWrapper
 
 		// The plan quota default information
-		Body []model.PlanQuotaDefault
+		Result []model.PlanQuotaDefault `json:"result"`
 	}
 }
 
