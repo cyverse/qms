@@ -12,20 +12,29 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan. This function assumes that the
-// given plan already contains the plan quota defaults.
+// QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan.
 func QuotasFromPlan(plan *model.Plan, periods int32) []model.Quota {
-	result := make([]model.Quota, len(plan.PlanQuotaDefaults))
-	for i, quotaDefault := range plan.PlanQuotaDefaults {
+
+	// Get the active plan quota defaults from the plan.
+	pqds := plan.GetDefaultQuotaValues()
+
+	// Build the array of quotas.
+	result := make([]model.Quota, len(pqds))
+
+	// Populate the quotas.
+	currentIndex := 0
+	for _, quotaDefault := range pqds {
 		quotaValue := quotaDefault.QuotaValue
 		if quotaDefault.ResourceType.Consumable {
 			quotaValue *= float64(periods)
 		}
-		result[i] = model.Quota{
+		result[currentIndex] = model.Quota{
 			Quota:          quotaValue,
 			ResourceTypeID: quotaDefault.ResourceTypeID,
 		}
+		currentIndex++
 	}
+
 	return result
 }
 
@@ -35,6 +44,12 @@ func SubscribeUserToPlan(
 ) (*model.Subscription, error) {
 	wrapMsg := "unable to add user plan"
 	var err error
+
+	// Look up the active plan rate.
+	planRate, err := plan.GetActivePlanRate()
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
 
 	// Define the user plan.
 	effectiveStartDate := time.Now()
@@ -46,6 +61,7 @@ func SubscribeUserToPlan(
 		PlanID:             plan.ID,
 		Quotas:             QuotasFromPlan(plan, opts.GetPeriods()),
 		Paid:               opts.IsPaid(),
+		PlanRateID:         planRate.ID,
 	}
 	err = db.WithContext(ctx).Create(&subscription).Error
 	if err != nil {
@@ -142,12 +158,20 @@ func GetSubscriptionDetails(ctx context.Context, db *gorm.DB, subscriptionID str
 	err := db.WithContext(ctx).
 		Preload("User").
 		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		Preload("Quotas").
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Preload("PlanRate").
 		Where("id = ?", subscriptionID).
 		First(&subscription).
 		Error
@@ -195,12 +219,20 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Preload("User").
 		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
 		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
 		Preload("Quotas").
 		Preload("Quotas.ResourceType").
 		Preload("Usages").
 		Preload("Usages.ResourceType").
+		Preload("PlanRate").
 		Where(
 			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
 				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
@@ -291,96 +323,4 @@ func UpsertQuota(ctx context.Context, db *gorm.DB, quota *model.Quota) error {
 	}
 
 	return nil
-}
-
-func GetUserOverages(ctx context.Context, db *gorm.DB, username string) ([]map[string]interface{}, error) {
-	var err error
-
-	retval := make([]map[string]interface{}, 0)
-
-	err = db.WithContext(ctx).
-		Table("subscriptions").
-		Select(
-			"subscriptions.id as subscription_id",
-			"users.username",
-			"plans.name as plan_name",
-			"resource_types.name as resource_type_name",
-			"quotas.quota",
-			"usages.usage",
-		).
-		Joins("JOIN users ON subscriptions.user_id = users.id").
-		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
-		Joins("JOIN quotas ON subscriptions.id = quotas.subscription_id").
-		Joins("JOIN usages ON subscriptions.id = usages.subscription_id").
-		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
-		Where("users.username = ?", username).
-		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
-				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		).
-		Where("usages.resource_type_id = quotas.resource_type_id").
-		Where("usages.usage >= quotas.quota").
-		Find(&retval).Error
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to look up overages")
-	}
-
-	return retval, nil
-}
-
-func IsOverage(ctx context.Context, db *gorm.DB, username string, resourceName string) (map[string]interface{}, error) {
-	var err error
-
-	rsc, err := GetResourceTypeByName(ctx, db, resourceName)
-	if err != nil {
-		return nil, err
-	}
-	if rsc == nil {
-		return nil, fmt.Errorf("resource type %s does not exist", resourceName)
-	}
-
-	result := make([]map[string]interface{}, 0)
-	retval := make(map[string]interface{})
-
-	err = db.WithContext(ctx).
-		Table("subscriptions").
-		Select(
-			"subscriptions.id as subscription_id",
-			"users.username",
-			"plans.name as plan_name",
-			"resource_types.name as resource_type_name",
-			"quotas.quota",
-			"usages.usage",
-		).
-		Joins("JOIN users ON subscriptions.user_id = users.id").
-		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
-		Joins("JOIN quotas ON subscriptions.id = quotas.subscription_id").
-		Joins("JOIN usages ON subscriptions.id = usages.subscription_id").
-		Joins("JOIN resource_types ON usages.resource_type_id = resource_types.id").
-		Where("users.username = ?", username).
-		Where("resource_types.name = ?", resourceName).
-		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
-				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		).
-		Where("usages.resource_type_id = quotas.resource_type_id").
-		Where("usages.usage >= quotas.quota").
-		Find(&result).Error
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check for overage")
-	}
-
-	k := make([]string, 0)
-	for key := range retval {
-		k = append(k, key)
-	}
-
-	if len(k) > 0 {
-		retval["overage"] = true
-	} else {
-		retval["overage"] = false
-	}
-
-	return retval, nil
 }

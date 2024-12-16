@@ -8,8 +8,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/cyverse-de/go-mod/pbinit"
-	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse/qms/internal/db"
 	"github.com/cyverse/qms/internal/httpmodel"
 	"github.com/cyverse/qms/internal/model"
@@ -188,88 +186,6 @@ func (s Server) UpdateCurrentSubscriptionQuota(c echo.Context) error {
 		responseBody := model.SubscriptionResponseFromSubscription(details, !hasActiveSubscription)
 		return model.Success(c, responseBody, http.StatusOK)
 	})
-}
-
-// GetUserOverages is the echo handler for listing the resources that a user is
-// in overage for.
-func (s Server) GetUserOverages(ctx echo.Context) error {
-	log := log.WithFields(logrus.Fields{"context": "getting any overages for the user"})
-
-	context := ctx.Request().Context()
-
-	responseList := pbinit.NewOverageList()
-
-	// Skip the remaining logic because qms is configured to not report overages.
-	if !s.ReportOverages {
-		return model.ProtobufJSON(ctx, responseList, http.StatusOK)
-	}
-
-	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
-	if username == "" {
-		return model.Error(ctx, "missing username", http.StatusBadRequest)
-	}
-
-	log.WithFields(logrus.Fields{"user": username})
-
-	log.Info("looking up any overages")
-
-	log.Debug("before calling db.GetUserOverages()")
-	results, err := db.GetUserOverages(context, s.GORMDB, username)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-	log.Debug("after calling db.GetUserOverages()")
-
-	for _, r := range results {
-		responseList.Overages = append(responseList.Overages, &qms.Overage{
-			ResourceName: r["resource_type_name"].(string),
-			Quota:        r["quota"].(float64),
-			Usage:        r["usage"].(float64),
-		})
-	}
-
-	return model.ProtobufJSON(ctx, responseList, http.StatusOK)
-}
-
-// InOverage is the echo handler for checking if a user is in overage for a
-// resource.
-func (s Server) InOverage(ctx echo.Context) error {
-	log := log.WithFields(logrus.Fields{"context": "checking if a user's usage is an overage"})
-
-	context := ctx.Request().Context()
-
-	response := pbinit.NewIsOverage()
-
-	// Skip the rest of the logic because qms is configured to not report overages
-	if !s.ReportOverages {
-		response.IsOverage = false
-		return model.ProtobufJSON(ctx, response, http.StatusOK)
-	}
-
-	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
-	if username == "" {
-		return model.Error(ctx, "missing username", http.StatusBadRequest)
-	}
-
-	resource := ctx.Param("resource-name")
-	if resource == "" {
-		return model.Error(ctx, "missing resource name", http.StatusBadRequest)
-	}
-
-	log.WithFields(logrus.Fields{"user": username, "resource": resource})
-
-	log.Info("checking if the usage is an overage")
-
-	results, err := db.IsOverage(context, s.GORMDB, username, resource)
-	if err != nil {
-		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-	}
-
-	if results != nil {
-		response.IsOverage = results["overage"].(bool)
-	}
-
-	return model.ProtobufJSON(ctx, response, http.StatusOK)
 }
 
 // AddUser adds a new user to the database. This is a no-op if the user already

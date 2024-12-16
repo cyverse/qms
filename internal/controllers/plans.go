@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"gorm.io/gorm/clause"
-
 	"github.com/cyverse-de/echo-middleware/v2/params"
 	"github.com/cyverse/qms/internal/db"
 	"github.com/cyverse/qms/internal/httpmodel"
@@ -14,12 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
-
-type PlanQuotaDefaultValues struct {
-	PlanName         string  `json:"plan_name"`
-	QuotaValue       float64 `json:"quota_value"`
-	ResourceTypeName string  `json:"resource_type_name"`
-}
 
 // extractPlanID extracts and validates the plan ID path parameter.
 func extractPlanID(ctx echo.Context) (string, error) {
@@ -133,11 +125,20 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	}
 
 	log = log.WithFields(logrus.Fields{"plan": plan.Name})
-	log.Debug("adding plan to the database")
+	log.Debugf("adding a new plan to the database: %+v", plan)
 
 	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		dbPlan := plan.ToDBModel()
+
+		// Make sure that a plan with the same name doesn't already exist.
+		planNameExists, err := db.CheckPlanNameExistence(context, tx, plan.Name)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if planNameExists {
+			return model.Error(ctx, fmt.Sprintf("a plan named `%s` already exists", plan.Name), http.StatusBadRequest)
+		}
+
 		// Look up each resource type and update it in the struct.
 		for i, planQuotaDefault := range dbPlan.PlanQuotaDefaults {
 			resourceType, err := db.GetResourceTypeByName(context, tx, planQuotaDefault.ResourceType.Name)
@@ -152,11 +153,10 @@ func (s Server) AddPlan(ctx echo.Context) error {
 
 			log.Debugf("adding plan quota default resource %s to plan %s", resourceType.Name, plan.Name)
 		}
-
-		log.Debug("adding plan to the database")
+		log.Debugf("translated plan: %+v", dbPlan)
 
 		// Add the plan to the database.
-		err := tx.WithContext(context).Create(&dbPlan).Error
+		err = tx.WithContext(context).Create(&dbPlan).Error
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
@@ -167,95 +167,321 @@ func (s Server) AddPlan(ctx echo.Context) error {
 	})
 }
 
-// AddPlanQuotaDefault returns the plan with the given identifier.
+// GetActivePlanRate reports the active rate for an exisitng subscription plan.
 //
-// swagger:route POST /plans/quota-defaults plans addPlanQuotaDefaults
+// swagger:route GET /plans/{plan_id}/active-rate plans getPlanActiveRate
 //
-// Update/ Add Plan Quota Defaults.
+// # Get Active Rate for a Plan
 //
-// Adds / updates quota plan defaults to a Plan.
+// Returns the active rate for a plan. The active plan rate is the rate associated with the selected plan with the most
+// recent effective date that is before the current date.
 //
-// responses:
+// Responses:
+//
+//	200: activePlanRateResponse
+//	400: badRequestResponse
+//	404: notFoundResponse
+//	500: internalServerErrorResponse
+func (s Server) GetActivePlanRate(ctx echo.Context) error {
+	var err error
+
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Initialize the logger and log a message indicating what is being done.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "getting active plan rate",
+			"plan_id": planID,
+		},
+	)
+	log.Info("getting the active rate for a plan")
+
+	// Begin a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		context := ctx.Request().Context()
+
+		// Verify that the plan exists.
+		exists, err := db.CheckPlanExistence(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if !exists {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
+		}
+
+		// Look up the active plan rate.
+		activePlanRate, err := db.GetActivePlanRate(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		return model.Success(ctx, activePlanRate, http.StatusOK)
+	})
+}
+
+// GetActiveQuotaDefaults reports the active quota defaults for an existing subscription plan.
+//
+// swagger:route GET /plans/{plan_id}/active-quota-defaults plans getPlanActiveQuotaDefaults
+//
+// # Get Active Quota Defaults for a Plan
+//
+// Returns the active quota defaults for a plan. The active quota default value for a specific subscription plan for a
+// specific resource type is always the quota default for that resource type with the most recent effective date not
+// greater than the current date.
+//
+// Responses:
+//
+// 200: activePlanQuotaDefaultsResponse
+// 400: badRequestResponse
+// 404: notFoundResponse
+// 500: internalServerErrorResponse
+func (s Server) GetActiveQuotaDefaults(ctx echo.Context) error {
+	var err error
+
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Initialize the logger and log a message indicating that the plan is being updated.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "getting active plan quota defaults",
+			"plan_id": planID,
+		},
+	)
+	log.Info("getting active plan quota defaults for an existing plan")
+
+	// Begin a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		context := ctx.Request().Context()
+
+		// Verify that the plan exists.
+		exists, err := db.CheckPlanExistence(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if !exists {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
+		}
+
+		// Look up the active plan quota defaults.
+		activePlanQuotaDefaults, err := db.GetActivePlanQuotaDefaults(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		return model.Success(ctx, activePlanQuotaDefaults, http.StatusOK)
+	})
+}
+
+// AddPlanQuotaDefaults adds quota defaults to an exisitng subscription plan.
+//
+// swagger:route POST /plans/{plan_id}/quota-defaults plans addPlanQuotaDefaults
+//
+// # Add Plan Quota Default Values
+//
+// Adds quota default values to an existing plan. The existing quota default values for the plan will be left in
+// place. The effective quota default value for a specific subscription plan for a specific resource type is always the
+// quota default for that resource type with the most recent effective date not greater than the current date.
+//
+// Responses:
 //
 //	200: planResponse
 //	400: badRequestResponse
-//	409: conflictResponse
+//	404: notFoundResponse
 //	500: internalServerErrorResponse
-func (s Server) AddPlanQuotaDefault(ctx echo.Context) error {
+func (s Server) AddPlanQuotaDefaults(ctx echo.Context) error {
 	var err error
 
-	// Parse and validate the request body.
-	var planQuotaDefaultValues PlanQuotaDefaultValues
-
-	log := log.WithFields(logrus.Fields{"context": "adding plan quota default"})
-
-	var context = ctx.Request().Context()
-	if err = ctx.Bind(&planQuotaDefaultValues); err != nil {
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
 	}
-	if planQuotaDefaultValues.PlanName == "" {
-		return model.Error(ctx, "plan name can not be empty", http.StatusBadRequest)
-	}
-	if planQuotaDefaultValues.ResourceTypeName == "" {
-		return model.Error(ctx, "resource type name can not be empty", http.StatusBadRequest)
-	}
 
-	log.Debugf(
-		"plan %s, resource type %s",
-		planQuotaDefaultValues.PlanName,
-		planQuotaDefaultValues.ResourceTypeName,
+	// Initialize the logger and log a message indicating that the plan is being updated.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "adding plan quota defaults",
+			"plan_id": planID,
+		},
 	)
+	log.Info("adding quota defaults to an existing plan")
 
+	// Parse and validate the request body.
+	var planQuotaDefaultList httpmodel.NewPlanQuotaDefaultList
+	if err = ctx.Bind(&planQuotaDefaultList); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	if err = planQuotaDefaultList.Validate(); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Begin a transaction.
 	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
-		plan, err := db.GetPlan(context, tx, planQuotaDefaultValues.PlanName)
+		context := ctx.Request().Context()
+
+		// Verify that the plan exists.
+		plan, err := db.GetPlanByID(context, tx, planID)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		}
-		if plan == nil {
-			msg := fmt.Sprintf("plan not found: %s", planQuotaDefaultValues.PlanName)
-			return model.Error(ctx, msg, http.StatusBadRequest)
-		}
-
-		log.Debug("got the plan from the database")
-
-		resourceType, err := db.GetResourceTypeByName(context, tx, planQuotaDefaultValues.ResourceTypeName)
-		if err != nil {
-			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
-		}
-		if resourceType == nil {
-			msg := fmt.Sprintf("resource type not found: %s", planQuotaDefaultValues.ResourceTypeName)
-			return model.Error(ctx, msg, http.StatusBadRequest)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
 		}
 
-		log.Debug("got the resource type info from the database")
-
-		planQuotaDefault := model.PlanQuotaDefault{
-			PlanID:         plan.ID,
-			ResourceTypeID: resourceType.ID,
-			QuotaValue:     planQuotaDefaultValues.QuotaValue,
+		// Convert the request body to the equivalent database model and insert the plan ID into each object.
+		planQuotaDefaults := planQuotaDefaultList.ToDBModel()
+		for i := range planQuotaDefaults {
+			planQuotaDefaults[i].PlanID = &planID
 		}
-		//updates quota value if quota value exists for a plan and resource type or else creates a defaults quota value for the plan and resource type.
-		err = tx.WithContext(context).
-			Debug().
-			Clauses(clause.OnConflict{
-				Columns: []clause.Column{
-					{
-						Name: "plan_id",
-					},
-					{
-						Name: "resource_type_id",
-					},
-				},
-				DoUpdates: clause.AssignmentColumns([]string{"quota_value"}),
-			}).
-			Create(&planQuotaDefault).Error
 
+		// Retireve the list of resource types from the database.
+		resourceTypeList, err := db.ListResourceTypes(context, tx)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
-		log.Debug("added plan quota default")
+		// Plug the actual resource types into each plan quota default.
+		for i, pqd := range planQuotaDefaults {
+			rt, err := resourceTypeList.GetResourceTypeByName(pqd.ResourceType.Name)
+			if err != nil {
+				return model.Error(ctx, err.Error(), http.StatusBadRequest)
+			}
+			planQuotaDefaults[i].ResourceType = *rt
+		}
 
-		return model.Success(ctx, "Success", http.StatusOK)
+		// Compare the plan quota defaults to existing quota defaults to check for duplicates.
+		existingPlanQuotaDefaults := make(map[httpmodel.PlanQuotaDefaultKey]bool)
+		for _, pqd := range plan.PlanQuotaDefaults {
+			key := httpmodel.KeyFromPlanQuotaDefault(pqd)
+			existingPlanQuotaDefaults[key] = true
+		}
+		for _, pqd := range planQuotaDefaults {
+			key := httpmodel.KeyFromPlanQuotaDefault(pqd)
+			if existingPlanQuotaDefaults[key] {
+				msg := fmt.Sprintf(
+					"plan quota default for resource type %s with effective date %s already exists",
+					pqd.ResourceType.Name,
+					pqd.EffectiveDate,
+				)
+				return model.Error(ctx, msg, http.StatusBadRequest)
+			}
+		}
+
+		// Save the list of plan quota defaults.
+		err = db.SavePlanQuotaDefaults(context, tx, planQuotaDefaults)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Look up the plan with the new plan quota defaults included and return it in the response.
+		plan, err = db.GetPlanByID(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found after saving it", planID)
+			return model.Error(ctx, msg, http.StatusInternalServerError)
+		}
+		return model.Success(ctx, plan, http.StatusOK)
+	})
+}
+
+// AddRates adds rates to an existing subscription plan.
+//
+// swagger:route POST /plans/{plan_id}/rates plans addPlanRates
+//
+// # Add Plan Rates
+//
+// Adds rates to an existing plan. The existing rates for the plan will be left in place. The effective rate for a
+// specific subscription plan is always the rate with the most recent effective date before the current date.
+//
+// Responses:
+//
+//	200: planResponse
+//	400: badRequestResponse
+//	404: notFoundResponse
+//	500: internalServerErrorResponse
+func (s Server) AddPlanRates(ctx echo.Context) error {
+	var err error
+
+	// Extract and validate the plan ID.
+	planID, err := extractPlanID(ctx)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Initialize the logger and log a message indicating that the plan is being updated.
+	log := log.WithFields(
+		logrus.Fields{
+			"context": "adding plan rates",
+			"plan_id": planID,
+		},
+	)
+	log.Info("adding rates to an existing plan")
+
+	// Parse and validate the request body.
+	var planRateList httpmodel.NewPlanRateList
+	if err = ctx.Bind(&planRateList); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	if err = planRateList.Validate(); err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Begin a transaction.
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		context := ctx.Request().Context()
+
+		// Verify that the plan existws.
+		plan, err := db.GetPlanByID(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found", planID)
+			return model.Error(ctx, msg, http.StatusNotFound)
+		}
+
+		// Convert the list of plan rates to the corresponding DB model.
+		planRates := planRateList.ToDBModel()
+
+		// Verify that none of the incoming plan rates duplicate existing plan rates.
+		existingPlanRates := make(map[int64]bool)
+		for _, pr := range plan.PlanRates {
+			existingPlanRates[pr.EffectiveDate.UnixMilli()] = true
+		}
+		for _, pr := range planRates {
+			if existingPlanRates[pr.EffectiveDate.UnixMilli()] {
+				msg := fmt.Sprintf("plan rate with effective date %s already exists", pr.EffectiveDate)
+				return model.Error(ctx, msg, http.StatusBadRequest)
+			}
+		}
+
+		// Plug the plan ID into each of the plan rates.
+		for i := range planRates {
+			planRates[i].PlanID = &planID
+		}
+
+		// Save the list of plan rates.
+		err = db.SavePlanRates(context, tx, planRates)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Look up the plan with the new plan quota defaults included and return it in the response.
+		plan, err = db.GetPlanByID(context, tx, planID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if plan == nil {
+			msg := fmt.Sprintf("plan ID %s not found after saving it", planID)
+			return model.Error(ctx, msg, http.StatusInternalServerError)
+		}
+		return model.Success(ctx, plan, http.StatusOK)
 	})
 }

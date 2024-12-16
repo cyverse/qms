@@ -45,9 +45,6 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 	// Lists all of the users.
 	users.GET("", s.GetAllUsers)
 
-	// Lists all of the active user plans.
-	users.GET("/all_active_users", s.GetAllActiveSubscriptions)
-
 	// Adds a new user to the database.
 	users.PUT("/:username", s.AddUser)
 
@@ -56,12 +53,6 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 
 	// Updates a quota in the user's current subscription plan.
 	users.POST("/:username/plan/:resource-type/quota", s.UpdateCurrentSubscriptionQuota)
-
-	// GET /:username/resources/overages returns summaries of any usages that exceed the quota for the corresponding resource.
-	users.GET("/:username/resources/overages", s.GetUserOverages)
-
-	// GET /:username/resources/:resource-name/overage returns whether the usage exceeds the quota for the resource.
-	users.GET("/:username/resources/:resource-name/in-overage", s.InOverage)
 
 	// Changes the user's current plan to one corresponding to plan name.
 	users.PUT("/:username/:plan_name", s.UpdateSubscription)
@@ -77,8 +68,17 @@ func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
 	// Gets the details of a plan by its UUID.
 	plans.GET("/:plan_id", s.GetPlanByID)
 
-	// Adds or updates the quota defaults of a plan.
-	plans.POST("/quota-defaults", s.AddPlanQuotaDefault)
+	// Reports the active rate for a plan.
+	plans.GET("/:plan_id/active-rate", s.GetActivePlanRate)
+
+	// Reports the active quota defaults for a plan.
+	plans.GET("/:plan_id/active-quota-defaults", s.GetActiveQuotaDefaults)
+
+	// Adds quota defaults to an existing plan.
+	plans.POST("/:plan_id/quota-defaults", s.AddPlanQuotaDefaults)
+
+	// Adds rates to an existing plan.
+	plans.POST("/:plan_id/rates", s.AddPlanRates)
 }
 
 func registerResourceTypeEndpoints(resourceTypes *echo.Group, s *controllers.Server) {

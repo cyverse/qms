@@ -16,7 +16,6 @@
 package swagger
 
 import (
-	"github.com/cyverse/qms/internal/controllers"
 	"github.com/cyverse/qms/internal/httpmodel"
 	"github.com/cyverse/qms/internal/model"
 )
@@ -172,7 +171,7 @@ type SubscriptionsResponse struct {
 		ResponseBodyWrapper
 
 		// The list of subscription responses
-		Result []model.SubscriptionResponse
+		Result []model.SubscriptionResponse `json:"result"`
 	}
 }
 
@@ -193,13 +192,13 @@ type ListSubscriptionsParameters struct {
 
 	// The sort field to use for the listing
 	//
-	// enum: username,start-date,end-date
+	// enum: ["username","start-date","end-date"]
 	// in: query
 	SortField string `json:"sort-field"`
 
 	// The sort direction to use for the listing
 	//
-	// enum: asc,desc
+	// enum: ["asc","desc"]
 	// in: query
 	SortDir string `json:"sort-dir"`
 
@@ -219,7 +218,7 @@ type SubscriptionListing struct {
 		ResponseBodyWrapper
 
 		// The list of subscriptions
-		Result []model.SubscriptionListing
+		Result []model.SubscriptionListing `json:"result"`
 	}
 }
 
@@ -267,7 +266,7 @@ type Subscription struct {
 		ResponseBodyWrapper
 
 		// The subscription details.
-		Result model.Subscription
+		Result model.Subscription `json:"result"`
 	}
 }
 
@@ -311,18 +310,100 @@ type PlanResponseWrapper struct {
 	}
 }
 
+// Incoming Plan Information
+//
+// swagger:parameters addPlan
 type AddPlans struct {
-	// The Add Plans information
+	// The plan details
 	//
 	// in: body
 	Body httpmodel.NewPlan
 }
 
-type AddPlanQuotaDefaults struct {
-	// The planQuotaDefault information
+// Getting the Active Rate for a Plan
+//
+// swagger:parameters getPlanActiveRate
+type GetPlanActiveRateParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required: true
+	PlanID string `json:"plan_id"`
+}
+
+// Plan Rate Information
+//
+// swagger:response activePlanRateResponse
+type ActivePlanRateResponseWrapper struct {
+
+	// in: body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The plan rate information
+		Result model.PlanRate `json:"result"`
+	}
+}
+
+// Getting Active Quota Defaults for a Plan
+//
+// swagger:parameters getPlanActiveQuotaDefaults
+type GetPlanActiveQuotaDefaultsParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required: true
+	PlanID string `json:"plan_id"`
+}
+
+// Plan Quota Default Information
+//
+// swagger:response activePlanQuotaDefaultsResponse
+type ActivePlanQuotaDefaultsResponseWrapper struct {
+
+	// in: body
+	Body struct {
+		ResponseBodyWrapper
+
+		// The plan quota default information
+		Result []model.PlanQuotaDefault `json:"result"`
+	}
+}
+
+// Adding Quota Defaults to a Plan
+//
+// swagger:parameters addPlanQuotaDefaults
+type AddPlanQuotaDefaultsParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required:true
+	PlanID string `json:"plan_id"`
+
+	// The plan quota default values
 	//
 	// in: body
-	Body controllers.PlanQuotaDefaultValues
+	Body httpmodel.NewPlanQuotaDefaultList
+}
+
+// Adding Rates to a Plan
+//
+// swagger:parameters addPlanRates
+type AddPlanRatesParameters struct {
+
+	// The plan identifier
+	//
+	// in:path
+	// required:true
+	PlanID string `json:"plan_id"`
+
+	// The plan rates
+	//
+	// in: body
+	Body httpmodel.NewPlanRateList
 }
 
 // Users

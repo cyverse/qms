@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/cyverse-de/echo-middleware/v2/params"
+	"github.com/cyverse/qms/internal/db"
 	"github.com/cyverse/qms/internal/model"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // extractResourceTypeID extracts and validates the resource type ID path parameter.
@@ -63,6 +63,7 @@ func (s Server) ListResourceTypes(ctx echo.Context) error {
 
 // AddResourceType is the handler for the POST /v1/resource-types endpoint.
 func (s Server) AddResourceType(ctx echo.Context) error {
+	context := ctx.Request().Context()
 	var err error
 
 	log := log.WithFields(logrus.Fields{"context": "adding resource type"})
@@ -84,24 +85,14 @@ func (s Server) AddResourceType(ctx echo.Context) error {
 	resourceType.ID = nil
 
 	// Save the resource type.
-	result := s.GORMDB.
-		Select("ID", "Name", "Unit").
-		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&resourceType)
-	if result.Error != nil {
-		msg := fmt.Sprintf("unable to save the resource type: %s", result.Error)
-		return model.Error(ctx, msg, http.StatusInternalServerError)
+	populatedResourceType, err := db.SaveResourceType(context, s.GORMDB, resourceType)
+	if err == db.ErrResourceTypeConflict {
+		return model.Error(ctx, err.Error(), http.StatusConflict)
+	} else if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 	}
 
-	// If the ID wasn't populated and an error didn't occur then there must have been a conflict.
-	if resourceType.ID == nil || *resourceType.ID == "" {
-		msg := fmt.Sprintf("a resource type with the given name already exists: %s", resourceType.Name)
-		return model.Error(ctx, msg, http.StatusConflict)
-	}
-
-	log.Debugf("added resource type, ID is %s", *resourceType.ID)
-
-	return model.Success(ctx, resourceType, http.StatusOK)
+	return model.Success(ctx, populatedResourceType, http.StatusOK)
 }
 
 // swagger:route GET /v1/resource-types/{resource_type_id} resource-types getResourceTypeDetails
@@ -157,6 +148,7 @@ func (s Server) GetResourceTypeDetails(ctx echo.Context) error {
 //   200: resourceTypeDetails
 //   400: badRequestResponse
 //   404: notFoundResponse
+//   409: conflictResponse
 //   500: internalServerErrorResponse
 
 // UpdateResourceType is the handler for the PUT /v1/resource-types/{resource_type_id} endpoint.
@@ -187,40 +179,40 @@ func (s Server) UpdateResourceType(ctx echo.Context) error {
 	log.Debug("extracted and validated the request body")
 
 	// Perform these steps in a transaction to ensure consistency.
-	existingResourceType := model.ResourceType{ID: &resourceTypeID}
-	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+	return s.GORMDB.Transaction(func(tx *gorm.DB) error {
 		var err error
 
 		// Verify that the resource type exists.
-		err = tx.WithContext(context).Take(&existingResourceType).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		existingResourceType, err := db.GetResourceTypeByID(context, tx, resourceTypeID)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
+		} else if existingResourceType == nil {
 			msg := fmt.Sprintf("resource type not found: %s", resourceTypeID)
-			return echo.NewHTTPError(http.StatusNotFound, msg)
-		} else if err != nil {
-			msg := fmt.Sprintf("unable to look up the resource type: %s", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, msg)
+			return model.Error(ctx, msg, http.StatusNotFound)
 		}
 
 		log.Debug("verified that the resource type exists")
 
+		// Verify that a different resource type with the new name doesn't exist already.
+		homonym, err := db.GetResourceTypeByName(context, tx, inboundResourceType.Name)
+		if err != nil {
+			return model.Error(ctx, err.Error(), http.StatusConflict)
+		} else if homonym != nil && *homonym.ID != *existingResourceType.ID {
+			fmt.Printf("existing: %+v\n", existingResourceType)
+			fmt.Printf("homonym: %+v\n", homonym)
+			msg := fmt.Sprintf("a resource type with the given name already exists: %s", inboundResourceType.Name)
+			return model.Error(ctx, msg, http.StatusConflict)
+		}
+
 		// Update the resource type.
 		existingResourceType.Name = inboundResourceType.Name
 		existingResourceType.Unit = inboundResourceType.Unit
-		err = tx.WithContext(context).Save(&existingResourceType).Error
+		existingResourceType.Consumable = inboundResourceType.Consumable
+		err = db.UpdateResourceType(context, tx, *existingResourceType)
 		if err != nil {
-			msg := fmt.Sprintf("unable to update the resource type: %s", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, msg)
+			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
 
-		log.Debugf("updated resource type to name: %s, unit: %s", existingResourceType.Name, existingResourceType.Unit)
-
-		return nil
+		return model.Success(ctx, existingResourceType, http.StatusOK)
 	})
-	if err != nil {
-		return model.HTTPError(ctx, err.(*echo.HTTPError))
-	}
-
-	log.Debug("returning success status")
-
-	return model.Success(ctx, existingResourceType, http.StatusOK)
 }
