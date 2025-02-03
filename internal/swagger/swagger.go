@@ -249,6 +249,12 @@ type UpdateSubscriptionParameters struct {
 	// default: 1
 	Periods int32 `json:"periods"`
 
+	// The date the subscription begins; defaults to the current date and time
+	//
+	// in: query
+	// format: date
+	StartDate string `json:"start_date"`
+
 	// The date the subscription ends; defaults to one year after the subscription start date per period
 	//
 	// in: query
