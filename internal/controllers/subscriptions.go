@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/cyverse/qms/internal/db"
 	"github.com/cyverse/qms/internal/model"
@@ -60,16 +61,24 @@ func (sa *SubscriptionAdder) subscriptionErrorf(username string, f string, args 
 func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.SubscriptionRequest) *model.SubscriptionResponse {
 	username := req.Username
 	planName := req.PlanName
+	startDate := req.GetStartDate()
+	endDate := req.GetEndDate(startDate)
 	paid := req.Paid
 
 	if username == nil || *username == "" {
-		return sa.subscriptionErrorf("", "no username provided in request")
+		return sa.subscriptionError("", "no username provided in request")
 	}
 	if planName == nil || *planName == "" {
-		return sa.subscriptionErrorf(*username, "no plan name provided in request")
+		return sa.subscriptionError(*username, "no plan name provided in request")
 	}
 	if paid == nil {
-		return sa.subscriptionErrorf(*username, "no paid indicator provided in request")
+		return sa.subscriptionError(*username, "no paid indicator provided in request")
+	}
+	if !startDate.Before(endDate) {
+		return sa.subscriptionError(*username, "start date must precede end date")
+	}
+	if !endDate.After(time.Now()) {
+		return sa.subscriptionError(*username, "end date must be in the future")
 	}
 
 	// Look up the plan information.
@@ -81,9 +90,11 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 	// Add some fields to the logger.
 	var log = sa.cfg.Log.WithFields(
 		logrus.Fields{
-			"username": *username,
-			"planName": *planName,
-			"paid":     *paid,
+			"username":  *username,
+			"planName":  *planName,
+			"startDate": startDate,
+			"endDate":   endDate,
+			"paid":      *paid,
 		},
 	)
 
@@ -96,7 +107,7 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 
 	// Check the current plan if we're supposed to.
 	if !sa.cfg.Force {
-		activeSubscription, err := db.GetActiveSubscriptionDetails(sa.cfg.Ctx, tx, *username)
+		activeSubscription, err := db.GetActiveSubscriptionDetailsForDate(sa.cfg.Ctx, tx, *username, startDate)
 		if err != nil {
 			log.Error(err)
 			return sa.subscriptionError(*username, err.Error())
@@ -110,8 +121,8 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 		}
 	}
 
-	// Deactivate all active subscriptions for the user.
-	err = db.DeactivateSubscriptions(sa.cfg.Ctx, tx, *user.ID)
+	// Ensure that no two subscriptions will be active at the same time..
+	err = db.DeactivateSubscriptions(sa.cfg.Ctx, tx, *user.ID, startDate, endDate)
 	if err != nil {
 		log.Error(err)
 		return sa.subscriptionError(*username, err.Error())

@@ -52,7 +52,7 @@ func SubscribeUserToPlan(
 	}
 
 	// Define the user plan.
-	effectiveStartDate := time.Now()
+	effectiveStartDate := opts.GetStartDate()
 	effectiveEndDate := opts.GetEndDate(effectiveStartDate)
 	subscription := model.Subscription{
 		EffectiveStartDate: &effectiveStartDate,
@@ -92,10 +92,46 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 	return SubscribeUserToPlan(ctx, db, user, plan, &model.SubscriptionOptions{})
 }
 
-// GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start
-// date must be before the current date and the effective end date must either be null or after the current date.
-// If multiple active user plans exist, the one with the most recent effective start date is used. If no active
-// user plans exist for the user then a new one for the basic plan is created.
+// GetActiveSubscriptionForDate retrieves information about the subscription active on the specified date. For a
+// subscription to be returned by this function, its effective start date must be beore the specified date and its
+// effective end date must be after the specified date. If multiple subscriptions are active on the specified date then
+// the one with the most redent effective start date is used.
+func GetActiveSubscriptionForDate(
+	ctx context.Context,
+	db *gorm.DB,
+	username string,
+	date time.Time,
+) (*model.Subscription, error) {
+	wrapMsg := fmt.Sprintf("unable to get the active user plan at %s", date)
+	var err error
+
+	// Look up the subscription.
+	var subscription model.Subscription
+	err = db.
+		WithContext(ctx).
+		Table("subscriptions").
+		Joins("JOIN users ON subscriptions.user_id=users.id").
+		Where("users.username=?", username).
+		Where(
+			db.Where("? BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date", date).
+				Or("? > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
+		).
+		Order("subscriptions.effective_start_date desc").
+		First(&subscription).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, wrapMsg)
+	}
+
+	return &subscription, nil
+}
+
+// GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start date
+// must be before the current date and the effective end date must either be null or after the current date.  If
+// multiple active user plans exist, the one with the most recent effective start date is used. If no active user plans
+// exist for the user then a new one for the basic plan is created.
 func GetActiveSubscription(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	wrapMsg := "unable to get the active user plan"
 	var err error
@@ -265,8 +301,8 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 // GetActiveSubscriptionDetails retrieves the user plan information that is currently active for the user. The effective
 // start date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user
-// plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveSubscription except
-// that it also loads all of the user plan details from the database.
+// plans exist for the user then a new one for the basic plan is created. This function is like GetActiveSubscription
+// except that it also loads all of the user plan details from the database.
 func GetActiveSubscriptionDetails(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	var err error
 
@@ -276,25 +312,75 @@ func GetActiveSubscriptionDetails(ctx context.Context, db *gorm.DB, username str
 		return nil, err
 	}
 
-	// Load the user plan details.
+	// Load the subscription details.
 	return GetSubscriptionDetails(ctx, db, *subscription.ID)
 }
 
-// DeactivateSubscriptions marks all currently active plans for a user as expired. This operation is used when a user
-// selects a new plan. This function does not support user plans that become active in the future at this time.
-func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string) error {
+// GetActiveSubscriptionDetailsForDate retrieves the active subscription for the user as of the given date. The active
+// subscription is determined by comparing the effective start and end dates for the subscription to the given date. For
+// a subscription to be considered active as of the given date, the effective start date must be prior to the given date
+// and the effective end date must be after the given date. If there are multiple active subscriptions as of the given
+// date then the one with the most recent effective start date will be returned. If there are no active subscriptions as
+// of the given date then a null pointer will be returned instead.
+func GetActiveSubscriptionDetailsForDate(
+	ctx context.Context,
+	db *gorm.DB,
+	username string,
+	date time.Time,
+) (*model.Subscription, error) {
+	var err error
+
+	// Get the subscription that was active as of the given date if there is one.
+	subscription, err := GetActiveSubscriptionForDate(ctx, db, username, date)
+	if subscription == nil || err != nil {
+		return subscription, err
+	}
+
+	// Load the subscription details.
+	return GetSubscriptionDetails(ctx, db, *subscription.ID)
+}
+
+// DeactivateSubscriptions marks subscriptions for a user as expired. This operation is used when a user subscribes to a
+// new plan.
+func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string, startDate, endDate time.Time) error {
 	wrapMsg := "unable to deactivate active plans for user"
-	// Mark currently active user plans as expired.
+
+	// Subscriptions that should be marked as inactive as of the start date.
 	err := db.WithContext(ctx).
 		Model(&model.Subscription{}).
-		Select("EffectiveEndDate").
 		Where("user_id = ?", userID).
-		Where("effective_end_date > CURRENT_TIMESTAMP").
-		UpdateColumn("effective_end_date", gorm.Expr("CURRENT_TIMESTAMP")).
+		Where("effective_start_date <= ?", startDate).
+		Where("effective_end_date > ?", startDate).
+		UpdateColumn("effective_end_date", startDate).
 		Error
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
+
+	// Subscriptions that should become effective as of the end date.
+	err = db.WithContext(ctx).
+		Model(&model.Subscription{}).
+		Where("user_id = ?", userID).
+		Where("effective_start_date >= ?", startDate).
+		Where("effective_end_date > ?", endDate).
+		UpdateColumn("effective_start_date", endDate).
+		Error
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	// Subscriptions that should never become effective.
+	err = db.WithContext(ctx).
+		Model(&model.Subscription{}).
+		Where("user_id = ?", userID).
+		Where("effective_start_date >= ?", startDate).
+		Where("effective_end_date <= ?", endDate).
+		UpdateColumn("effective_end_date", gorm.Expr("effective_start_date")).
+		Error
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
 	return nil
 }
 

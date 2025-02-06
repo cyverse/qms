@@ -272,7 +272,14 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 	}
 	log.Debugf("periods from request is %d", periods)
 
-	defaultEndDate := time.Now().AddDate(int(periods), 0, 0)
+	defaultStartDate := time.Now()
+	startDate, err := query.ValidateDateQueryParam(ctx, "start-date", &defaultStartDate)
+	if err != nil {
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	log.Debugf("start date from request is %s", startDate)
+
+	defaultEndDate := startDate.AddDate(int(periods), 0, 0)
 	endDate, err := query.ValidateDateQueryParam(ctx, "end-date", &defaultEndDate)
 	if err != nil {
 		return model.Error(ctx, err.Error(), http.StatusBadRequest)
@@ -282,9 +289,16 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 	}
 	log.Debugf("end date from request is %s", endDate)
 
+	if !startDate.Before(endDate) {
+		return model.Error(ctx, "the start date must precede the end date", http.StatusBadRequest)
+	}
+
 	log = log.WithFields(logrus.Fields{
-		"user": username,
-		"plan": planName,
+		"user":       username,
+		"plan":       planName,
+		"paid":       paid,
+		"start-date": startDate,
+		"end-date":   endDate,
 	})
 
 	// Start a transaction.
@@ -296,7 +310,6 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-
 		log.Debug("found user in the database")
 
 		// Verify that a plan with the given name exists.
@@ -308,23 +321,23 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 			msg := fmt.Sprintf("plan name `%s` not found", planName)
 			return model.Error(ctx, msg, http.StatusBadRequest)
 		}
-
 		log.Debug("verified that plan exists in database")
 
-		// Deactivate all active plans for the user.
-		err = db.DeactivateSubscriptions(context, tx, *user.ID)
+		// Deactivate conflicting subscriptions for the user.
+		err = db.DeactivateSubscriptions(context, tx, *user.ID, startDate, endDate)
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-
-		log.Debug("deactivated all active plans for the user")
+		log.Debug("deactivated conflicting subscriptions for the user")
 
 		// Define the subscription options.
+		startTimestamp := timestamp.Timestamp(startDate)
 		endTimestamp := timestamp.Timestamp(endDate)
 		opts := &model.SubscriptionOptions{
-			Paid:    &paid,
-			Periods: &periods,
-			EndDate: &endTimestamp,
+			Paid:      &paid,
+			Periods:   &periods,
+			StartDate: &startTimestamp,
+			EndDate:   &endTimestamp,
 		}
 
 		// Subscribe the user to the plan.
@@ -332,8 +345,7 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		if err != nil {
 			return model.Error(ctx, err.Error(), http.StatusInternalServerError)
 		}
-
-		log.Debug("subscribed user to the new plan")
+		log.Debug("finished adding the new subscription")
 
 		// Load the subscription details.
 		details, err := db.GetSubscriptionDetails(context, tx, *subscription.ID)

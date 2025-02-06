@@ -16,6 +16,9 @@ type SubscriptionOptions struct {
 	// The number of periods included in the subscription.
 	Periods *int32 `json:"periods"`
 
+	// The effective start date of the subscription.
+	StartDate *timestamp.Timestamp `json:"start_date"`
+
 	// The effective end date of the subscription.
 	EndDate *timestamp.Timestamp `json:"end_date"`
 }
@@ -35,6 +38,15 @@ func (o *SubscriptionOptions) GetPeriods() int32 {
 		return 1
 	} else {
 		return *o.Periods
+	}
+}
+
+// Return the effective start date for the subscription options.
+func (o *SubscriptionOptions) GetStartDate() time.Time {
+	if o.StartDate == nil {
+		return time.Now()
+	} else {
+		return time.Time(*o.StartDate)
 	}
 }
 
