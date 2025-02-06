@@ -114,7 +114,7 @@ func GetActiveSubscriptionForDate(
 		Where("users.username=?", username).
 		Where(
 			db.Where("? BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date", date).
-				Or("? > subscriptions.effective_start_date AND subscriptions.effecrtive_end_date IS NULL"),
+				Or("? > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
 		).
 		Order("subscriptions.effective_start_date desc").
 		First(&subscription).Error
@@ -301,7 +301,7 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 // GetActiveSubscriptionDetails retrieves the user plan information that is currently active for the user. The effective
 // start date must be before the current date and the effective end date must either be null or after the current date.
 // If multiple active user plans exist, the one with the most recent effective start date is used. If no active user
-// plans exist for the user then a new one for the basic plan is created. This funciton is like GetActiveSubscription
+// plans exist for the user then a new one for the basic plan is created. This function is like GetActiveSubscription
 // except that it also loads all of the user plan details from the database.
 func GetActiveSubscriptionDetails(ctx context.Context, db *gorm.DB, username string) (*model.Subscription, error) {
 	var err error
