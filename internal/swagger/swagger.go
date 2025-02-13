@@ -208,6 +208,24 @@ type ListSubscriptionsParameters struct {
 	Search string `json:"search"`
 }
 
+// Subscription Listing Parameters for a single user.
+//
+// swagger:parameters listUserSubscriptions
+type ListUserSubscriptionsParameters struct {
+
+	// Whether to include expired subscriptions in the listing
+	//
+	// in: query
+	// default: false
+	IncludeExpired bool `json:"include-expired"`
+
+	// The cutoff date for expired subscriptions
+	//
+	// in: query
+	// default: current timestamp
+	Cutoff string `json:"cutoff"`
+}
+
 // Subscription Listing
 //
 // swagger:response subscriptionListing

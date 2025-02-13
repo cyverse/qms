@@ -225,7 +225,9 @@ type SubscriptionListingParams struct {
 }
 
 // ListSubscriptions lists subscriptions for multiple users.
-func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionListingParams) ([]*model.Subscription, int64, error) {
+func ListSubscriptions(
+	ctx context.Context, db *gorm.DB, params *SubscriptionListingParams,
+) ([]*model.Subscription, int64, error) {
 	var subscriptions []*model.Subscription
 	var count int64
 
@@ -292,6 +294,55 @@ func ListSubscriptions(ctx context.Context, db *gorm.DB, params *SubscriptionLis
 			Offset(offset).
 			Limit(limit).
 			Order(orderBy).
+			Find(&subscriptions).Error
+	}
+
+	return subscriptions, count, err
+}
+
+// ListSubscriptionsForUser lists subscriptions for a single user.
+func ListSubscriptionsForUser(
+	ctx context.Context, db *gorm.DB, username string, includeExpired bool, cutoff time.Time,
+) ([]*model.Subscription, int64, error) {
+	var subscriptions []*model.Subscription
+	var count int64
+	var err error
+
+	// Build the base query.
+	baseQuery := db.WithContext(ctx).
+		Joins("JOIN users ON subscriptions.user_id = users.id").
+		Preload("User").
+		Preload("Plan").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
+		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
+		Preload("Quotas").
+		Preload("Quotas.ResourceType").
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Preload("PlanRate").
+		Where("users.username = ?", username)
+
+	// Add the where clause for the cutoff if we're supposed to.
+	if !includeExpired {
+		baseQuery = baseQuery.Where("subscriptions.effective_end_date >= ?", cutoff)
+	}
+
+	// Count the number of items in the result set.
+	err = baseQuery.
+		Debug().
+		Model(&subscriptions).
+		Count(&count).Error
+
+	// Look up the result set.
+	if err == nil {
+		err = baseQuery.
+			Debug().
+			Order("subscriptions.effective_start_date asc, subscriptions.effective_end_date asc").
 			Find(&subscriptions).Error
 	}
 

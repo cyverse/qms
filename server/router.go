@@ -56,6 +56,8 @@ func registerUserEndpoints(users *echo.Group, s *controllers.Server) {
 
 	// Changes the user's current plan to one corresponding to plan name.
 	users.PUT("/:username/:plan_name", s.UpdateSubscription)
+
+	users.GET("/:username/subscriptions", s.ListUserSubscriptions)
 }
 
 func registerPlanEndpoints(plans *echo.Group, s *controllers.Server) {
