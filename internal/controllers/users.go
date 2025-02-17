@@ -358,3 +358,74 @@ func (s Server) UpdateSubscription(ctx echo.Context) error {
 		return model.Success(ctx, details, http.StatusOK)
 	})
 }
+
+// ListUserSubscriptions is the handler for the GET /v1/subscriptions/:username endpoint.
+//
+// swagger:route GET /v1/uers/{username}/subscriptions users listUserSubscriptions
+//
+// # List Subscriptions for a User
+//
+// Lists existing CyVerse subscriptions for the named user.
+//
+// Responses:
+//
+//	200: subscriptionListing
+//	400: badRequestResponse
+//	500: internalServerErrorResponse
+func (s Server) ListUserSubscriptions(ctx echo.Context) error {
+	var err error
+
+	// Initialize the context for the endpoint.
+	var log = log.WithField("context", "list-user-subscriptions")
+	var context = ctx.Request().Context()
+
+	// Extract the path parameters.
+	username := strings.TrimSuffix(ctx.Param("username"), s.UsernameSuffix)
+	if username == "" {
+		return model.Error(ctx, "invalid username", http.StatusBadRequest)
+	}
+	log.Debugf("user name from request is %s", username)
+	log = log.WithField("username", username)
+
+	// Extract the `include-expired` query parameter.
+	var includeExpired bool = false
+	includeExpired, err = query.ValidateBooleanQueryParam(ctx, "include-expired", &includeExpired)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	log = log.WithField("include-expired", includeExpired)
+
+	// Extract the `cutoff` query parameter.
+	var cutoff time.Time = time.Now()
+	cutoff, err = query.ValidateDateQueryParam(ctx, "cutoff", &cutoff)
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+	log = log.WithField("cutoff", cutoff)
+
+	log.Infof("obtaining the listing")
+
+	// Obtain the listing.
+	var subscriptions []*model.Subscription
+	var count int64
+	err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		subscriptions, count, err = db.ListSubscriptionsForUser(context, tx, username, includeExpired, cutoff)
+		return err
+	})
+	if err != nil {
+		log.Error(err)
+		return model.Error(ctx, err.Error(), http.StatusBadRequest)
+	}
+
+	// Build the result.
+	return model.Success(
+		ctx,
+		&model.SubscriptionListing{
+			Subscriptions: subscriptions,
+			Total:         count,
+		},
+		http.StatusOK,
+	)
+}
