@@ -34,4 +34,5 @@ type Update struct {
 	ResourceType      ResourceType `json:"resource_types"`
 	UserID            *string      `gorm:"type:uuid" json:"-"`
 	User              User         `json:"user"`
+	Metadata          *string      `json:"metadata"`
 }

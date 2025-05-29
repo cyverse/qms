@@ -20,6 +20,7 @@ type Usage struct {
 	ResourceName string  `json:"resource_name"`
 	UsageValue   float64 `json:"usage_value"`
 	UpdateType   string  `json:"update_type"`
+	Metadata     string  `json:"metadata"`
 }
 
 var (
@@ -138,6 +139,7 @@ func (s Server) addUsage(ctx context.Context, usage *Usage) error {
 			UpdateOperationID: updateOperation.ID,
 			ResourceTypeID:    resourceType.ID,
 			UserID:            subscription.UserID,
+			Metadata:          &usage.Metadata,
 		}
 		err = tx.WithContext(ctx).Debug().Create(&update).Error
 		if err != nil {
