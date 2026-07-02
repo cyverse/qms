@@ -36,7 +36,6 @@ require (
 require (
 	github.com/cyverse-de/go-mod/cfg v0.0.2
 	github.com/cyverse-de/go-mod/logging v0.0.3
-	github.com/cyverse-de/go-mod/protobufjson v0.0.4
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/golang-migrate/migrate/v4 v4.17.1
 	github.com/labstack/echo/v4 v4.12.0
