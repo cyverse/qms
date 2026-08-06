@@ -113,11 +113,15 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 			return sa.subscriptionError(*username, err.Error())
 		}
 
-		// Compare the CPU allocations to determine the plan levels to determine if the user gets a new subscription.
-		activeCPUAllocation := activeSubscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
-		newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
-		if newCPUAllocation <= activeCPUAllocation {
-			return model.SubscriptionResponseFromSubscription(activeSubscription, false)
+		// A user with no subscription as of the start date has nothing to
+		// compare against, so the request can't be a downgrade and proceeds.
+		if activeSubscription != nil {
+			// Compare the CPU allocations to determine the plan levels to determine if the user gets a new subscription.
+			activeCPUAllocation := activeSubscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+			newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+			if newCPUAllocation <= activeCPUAllocation {
+				return model.SubscriptionResponseFromSubscription(activeSubscription, false)
+			}
 		}
 	}
 

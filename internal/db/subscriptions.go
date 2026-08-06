@@ -114,7 +114,7 @@ func GetActiveSubscriptionForDate(
 		Where("users.username=?", username).
 		Where(
 			db.Where("? BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date", date).
-				Or("? > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
+				Or("? > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL", date),
 		).
 		Order("subscriptions.effective_start_date desc").
 		First(&subscription).Error

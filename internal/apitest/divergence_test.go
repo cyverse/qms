@@ -3,7 +3,6 @@ package apitest
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -97,72 +96,113 @@ func TestUsageWritesAnUpdatesRow(t *testing.T) {
 	}
 }
 
-// KNOWN BUG, recorded deliberately: POST /v1/subscriptions?force=false fails
-// for every request, and reports success while doing it.
-//
-// The unforced path is supposed to compare the plans' default cpu.hours
-// allocations and re-subscribe only on an upgrade. It never gets that far,
-// because GetActiveSubscriptionForDate builds
-//
-//	.Or("? > subscriptions.effective_start_date AND ...")
-//
-// with no argument for the placeholder, so PostgreSQL rejects the statement
-// with `syntax error at or near ">"`. The handler turns that into a per-item
-// failure_reason and still answers 200, so terrain's
-// POST /terrain/admin/qms/subscriptions silently creates nothing whenever
-// force isn't set.
-//
-// This test pins the broken behavior only so the merge can't quietly alter it.
-// When the placeholder is fixed, replace it with the upgrade/refuse matrix the
-// rule is meant to implement — the plan allocations it depends on are already
-// correct (Basic 200, Pro 20000), and model.TestGetDefaultQuotaValue covers the
-// selector that reads them.
-func TestUnforcedSubscriptionChangeIsBroken(t *testing.T) {
-	resetDB(t)
-
-	forced := fmt.Sprintf(
-		`{"subscriptions": [{"username": %q, "plan_name": "Basic", "paid": true, "periods": 1}]}`,
-		testUser,
-	)
-	if got := do(t, http.MethodPost, "/v1/subscriptions?force=true", forced); got.status != http.StatusOK {
-		t.Fatalf("unable to establish the starting subscription: %s", got.body)
-	}
-
+// subscribe posts a single subscription request and returns the one result.
+func subscribe(t *testing.T, username, planName string, force bool) map[string]any {
+	t.Helper()
 	body := fmt.Sprintf(
-		`{"subscriptions": [{"username": %q, "plan_name": "Pro", "paid": true, "periods": 1}]}`,
-		testUser,
+		`{"subscriptions": [{"username": %q, "plan_name": %q, "paid": true, "periods": 1}]}`,
+		username, planName,
 	)
-	got := do(t, http.MethodPost, "/v1/subscriptions?force=false", body)
+	got := do(t, http.MethodPost, fmt.Sprintf("/v1/subscriptions?force=%t", force), body)
 	if got.status != http.StatusOK {
-		t.Fatalf("status = %d, body %s", got.status, got.body)
+		t.Fatalf("subscribing %s to %s failed: status %d, body %s", username, planName, got.status, got.body)
 	}
 
-	decoded := mustDecode(t, got)
-	results, ok := decoded["result"].([]any)
+	results, ok := mustDecode(t, got)["result"].([]any)
 	if !ok || len(results) != 1 {
 		t.Fatalf("expected exactly one subscription result, got: %s", got.body)
 	}
 	result := results[0].(map[string]any)
 
-	reason, _ := result["failure_reason"].(string)
-	if !strings.Contains(reason, "syntax error") {
-		t.Errorf("failure_reason = %q, want the SQL syntax error this path currently produces", reason)
+	if reason, failed := result["failure_reason"].(string); failed {
+		t.Fatalf("subscribing %s to %s reported a failure: %s", username, planName, reason)
 	}
-	if newSubscription, _ := result["new_subscription"].(bool); newSubscription {
-		t.Error("new_subscription = true, want false: the request failed")
-	}
+	return result
+}
 
-	// The starting subscription is untouched, so the upgrade never happened.
-	activePlan := queryString(t, `
+// activePlanFor returns the name of the plan the user is subscribed to now.
+func activePlanFor(t *testing.T, username string) string {
+	t.Helper()
+	return queryString(t, `
 		SELECT p.name
 		  FROM subscriptions s
 		  JOIN users ON s.user_id = users.id
 		  JOIN plans p ON s.plan_id = p.id
 		 WHERE users.username = $1
 		   AND CURRENT_TIMESTAMP BETWEEN s.effective_start_date AND s.effective_end_date`,
-		testUser)
-	if activePlan != "Basic" {
-		t.Errorf("active plan = %q, want \"Basic\"", activePlan)
+		username)
+}
+
+// Without force, a subscription request only takes effect if it raises the
+// user's cpu.hours allocation, so an admin re-running a bulk subscription
+// can't silently downgrade anyone. The subscriptions service compares plan
+// *names* instead and would downgrade in either direction, so this is the
+// semantic the merge has to keep.
+func TestUnforcedSubscriptionChangeOnlyUpgrades(t *testing.T) {
+	testCases := []struct {
+		name           string
+		startingPlan   string
+		requestedPlan  string
+		wantNew        bool
+		wantEndingPlan string
+	}{
+		{
+			name:           "a larger plan is an upgrade",
+			startingPlan:   "Basic",
+			requestedPlan:  "Pro",
+			wantNew:        true,
+			wantEndingPlan: "Pro",
+		},
+		{
+			name:           "a smaller plan is refused",
+			startingPlan:   "Pro",
+			requestedPlan:  "Basic",
+			wantNew:        false,
+			wantEndingPlan: "Pro",
+		},
+		{
+			name:           "the same plan is refused",
+			startingPlan:   "Pro",
+			requestedPlan:  "Pro",
+			wantNew:        false,
+			wantEndingPlan: "Pro",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetDB(t)
+
+			// Establish the starting subscription with force, so only the
+			// request under test exercises the comparison rule.
+			subscribe(t, testUser, tc.startingPlan, true)
+
+			result := subscribe(t, testUser, tc.requestedPlan, false)
+			if newSubscription, _ := result["new_subscription"].(bool); newSubscription != tc.wantNew {
+				t.Errorf("new_subscription = %v, want %v", newSubscription, tc.wantNew)
+			}
+
+			// Whatever the response says, the active subscription in the
+			// database is what the rest of the DE reads.
+			if active := activePlanFor(t, testUser); active != tc.wantEndingPlan {
+				t.Errorf("active plan = %q, want %q", active, tc.wantEndingPlan)
+			}
+		})
+	}
+}
+
+// A user QMS has never subscribed has no allocation to compare against, so an
+// unforced request has to create the subscription rather than treat the
+// missing one as a reason to refuse.
+func TestUnforcedSubscriptionForNewUser(t *testing.T) {
+	resetDB(t)
+
+	result := subscribe(t, testUser, "Pro", false)
+	if newSubscription, _ := result["new_subscription"].(bool); !newSubscription {
+		t.Error("new_subscription = false, want true for a user with no prior subscription")
+	}
+	if active := activePlanFor(t, testUser); active != "Pro" {
+		t.Errorf("active plan = %q, want \"Pro\"", active)
 	}
 }
 
