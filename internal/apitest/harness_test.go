@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"sort"
 	"testing"
 	"time"
 
@@ -220,13 +221,29 @@ var seededIDs = map[string]bool{
 	"f1fa4a1e-9676-11ec-aa73-406c8f3e9cbb": true, // update operation: SET
 }
 
+// unorderedFields name response fields whose queries carry no ORDER BY, so the
+// database returns their rows in arbitrary order. Their contents are sorted
+// before comparison. Arrays reached by any other route — notably the listing
+// endpoints, which return their rows directly under "result" — keep their order
+// and are still verified, so a broken sort-field parameter would fail.
+var unorderedFields = map[string]bool{
+	"quotas":              true,
+	"usages":              true,
+	"plan_quota_defaults": true,
+	"plan_rates":          true,
+}
+
 // redact replaces database-generated UUIDs and timestamps with placeholders so
 // goldens are stable across runs. Everything else is compared verbatim.
 func redact(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, nested := range typed {
-			typed[key] = redact(nested)
+			nested = redact(nested)
+			if list, isList := nested.([]any); isList && unorderedFields[key] {
+				sortByContent(list)
+			}
+			typed[key] = nested
 		}
 		return typed
 	case []any:
@@ -245,6 +262,20 @@ func redact(value any) any {
 	default:
 		return value
 	}
+}
+
+// sortByContent orders elements by their encoded form, giving an arbitrary but
+// reproducible order.
+func sortByContent(list []any) {
+	keys := make(map[int]string, len(list))
+	for i, element := range list {
+		encoded, err := json.Marshal(element)
+		if err != nil {
+			return
+		}
+		keys[i] = string(encoded)
+	}
+	sort.SliceStable(list, func(i, j int) bool { return keys[i] < keys[j] })
 }
 
 // encodeGolden renders a redacted response the way golden files store it.
