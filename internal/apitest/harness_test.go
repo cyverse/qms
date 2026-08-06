@@ -110,7 +110,7 @@ func runSuite(m *testing.M) int {
 	if err != nil {
 		log.Fatalf("unable to connect to the database: %s", err)
 	}
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	testRouter = newTestRouter()
 
@@ -122,7 +122,7 @@ func installExtensions(databaseURI string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	for _, extension := range requiredExtensions {
 		if _, err = conn.Exec(fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %q", extension)); err != nil {

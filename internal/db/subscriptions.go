@@ -232,11 +232,11 @@ func ListSubscriptions(
 	var count int64
 
 	// Determine the offset and limit to use.
-	var offset int = 0
+	offset := 0
 	if params != nil && params.Offset >= 0 {
 		offset = params.Offset
 	}
-	var limit int = 50
+	limit := 50
 	if params != nil && params.Limit >= 0 {
 		limit = params.Limit
 	}

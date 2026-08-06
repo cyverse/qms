@@ -388,7 +388,7 @@ func (s Server) ListUserSubscriptions(ctx echo.Context) error {
 	log = log.WithField("username", username)
 
 	// Extract the `include-expired` query parameter.
-	var includeExpired bool = false
+	includeExpired := false
 	includeExpired, err = query.ValidateBooleanQueryParam(ctx, "include-expired", &includeExpired)
 	if err != nil {
 		log.Error(err)
@@ -397,7 +397,7 @@ func (s Server) ListUserSubscriptions(ctx echo.Context) error {
 	log = log.WithField("include-expired", includeExpired)
 
 	// Extract the `cutoff` query parameter.
-	var cutoff time.Time = time.Now()
+	cutoff := time.Now()
 	cutoff, err = query.ValidateDateQueryParam(ctx, "cutoff", &cutoff)
 	if err != nil {
 		log.Error(err)
