@@ -2,16 +2,15 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse/qms/config"
 	"github.com/cyverse/qms/logging"
+	"github.com/cyverse/qms/migrations"
 	"github.com/cyverse/qms/server"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -24,15 +23,15 @@ func runSchemaMigrations(dbURI string, reinit bool) error {
 
 	wrapMsg := "unable to run the schema migrations"
 
-	// Build the URI to the migrations.
-	workingDir, err := os.Getwd()
+	// The migrations are embedded in the binary so that running them doesn't
+	// depend on the process's working directory.
+	source, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
-	migrationsURI := fmt.Sprintf("file://%s/migrations", workingDir)
 
 	// Initialize the migrations.
-	m, err := migrate.New(migrationsURI, dbURI)
+	m, err := migrate.NewWithSourceInstance("iofs", source, dbURI)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
