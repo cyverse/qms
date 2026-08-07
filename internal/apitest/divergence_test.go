@@ -3,7 +3,9 @@ package apitest
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 )
 
 // The behaviors pinned here are the ones the subscriptions service implements
@@ -120,17 +122,70 @@ func subscribe(t *testing.T, username, planName string, force bool) map[string]a
 	return result
 }
 
+// activeSubscriptions matches the subscriptions in effect right now. It has to
+// agree with the service's own activeAsOf predicate, open-ended subscriptions
+// included, or these tests would silently stop seeing the rows they check.
+const activeSubscriptions = `
+	  FROM subscriptions s
+	  JOIN users ON s.user_id = users.id
+	  JOIN plans p ON p.id = s.plan_id
+	 WHERE users.username = $1
+	   AND s.effective_start_date <= CURRENT_TIMESTAMP
+	   AND (s.effective_end_date IS NULL OR s.effective_end_date >= CURRENT_TIMESTAMP)`
+
+// subscribeForPeriod force-subscribes a user for an explicit period, which is
+// how a subscription that starts in the future gets created.
+func subscribeForPeriod(t *testing.T, username, planName string, start, end time.Time) {
+	t.Helper()
+	body := fmt.Sprintf(
+		`{"subscriptions": [{"username": %q, "plan_name": %q, "paid": true, "start_date": %q, "end_date": %q}]}`,
+		username, planName, start.Format(time.RFC3339), end.Format(time.RFC3339),
+	)
+	got := do(t, http.MethodPost, "/v1/subscriptions?force=true", body)
+	if got.status != http.StatusOK {
+		t.Fatalf("scheduling %s for %s failed: status %d, body %s", planName, username, got.status, got.body)
+	}
+}
+
 // activePlanFor returns the name of the plan the user is subscribed to now.
+// Every active plan is aggregated rather than one being picked arbitrarily, so
+// a test expecting a single plan fails loudly — naming both plans — if the
+// service ever leaves two subscriptions running at once.
 func activePlanFor(t *testing.T, username string) string {
 	t.Helper()
 	return queryString(t, `
-		SELECT p.name
-		  FROM subscriptions s
-		  JOIN users ON s.user_id = users.id
-		  JOIN plans p ON s.plan_id = p.id
-		 WHERE users.username = $1
-		   AND CURRENT_TIMESTAMP BETWEEN s.effective_start_date AND s.effective_end_date`,
-		username)
+		SELECT coalesce(string_agg(p.name, ',' ORDER BY s.effective_start_date DESC), '')`+
+		activeSubscriptions, username)
+}
+
+// insertOpenEndedSubscription creates a subscription with no effective end
+// date, the shape legacy QMS rows have. It's written directly because the API
+// always supplies an end date and can no longer produce one.
+func insertOpenEndedSubscription(t *testing.T, username, planName string) {
+	t.Helper()
+
+	_, err := testDB.Exec(
+		`INSERT INTO users (username) VALUES ($1) ON CONFLICT (username) DO NOTHING`, username,
+	)
+	if err != nil {
+		t.Fatalf("unable to create the user: %s", err)
+	}
+
+	result, err := testDB.Exec(`
+		INSERT INTO subscriptions (user_id, plan_id, plan_rate_id, effective_start_date, effective_end_date)
+		SELECT u.id, p.id, r.id, CURRENT_TIMESTAMP - interval '1 day', NULL
+		  FROM users u
+		  JOIN plans p ON p.name = $2
+		  JOIN plan_rates r ON r.plan_id = p.id
+		 WHERE u.username = $1
+		 ORDER BY r.effective_date DESC
+		 LIMIT 1`, username, planName)
+	if err != nil {
+		t.Fatalf("unable to insert an open-ended subscription: %s", err)
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows != 1 {
+		t.Fatalf("open-ended subscription insert affected %d rows, want 1 (err: %v)", rows, err)
+	}
 }
 
 // Without force, a subscription request only takes effect if it raises the
@@ -206,6 +261,99 @@ func TestUnforcedSubscriptionForNewUser(t *testing.T) {
 	}
 }
 
+// A subscription with no effective end date runs indefinitely, so it is still
+// active and an unforced request for a lesser plan has to be refused. Nothing
+// else covers the null-end-date branch of the active-subscription lookup: the
+// API always writes an end date, so a merge could drop that branch and every
+// other test would stay green while legacy subscriptions stopped counting.
+func TestUnforcedChangeSeesAnOpenEndedSubscription(t *testing.T) {
+	resetDB(t)
+	insertOpenEndedSubscription(t, testUser, "Pro")
+
+	result := subscribe(t, testUser, "Basic", false)
+	if newSubscription, _ := result["new_subscription"].(bool); newSubscription {
+		t.Error("new_subscription = true, want false: the open-ended subscription is still active")
+	}
+	if active := activePlanFor(t, testUser); active != "Pro" {
+		t.Errorf("active plan = %q, want \"Pro\"", active)
+	}
+}
+
+// Upgrading over an open-ended subscription has to close it. The deactivation
+// queries compare against the effective end date, and every such comparison is
+// false for null, so an open-ended subscription survives unless it's handled
+// explicitly — leaving the user on two plans at once.
+func TestUnforcedUpgradeClosesAnOpenEndedSubscription(t *testing.T) {
+	resetDB(t)
+	insertOpenEndedSubscription(t, testUser, "Basic")
+
+	subscribe(t, testUser, "Pro", false)
+
+	if active := activePlanFor(t, testUser); active != "Pro" {
+		t.Errorf("active plan = %q, want \"Pro\" (both plans listed means neither was deactivated)", active)
+	}
+}
+
+// An unforced request covers a whole period, not just its first instant, so a
+// better subscription scheduled to start later in that period still counts as
+// the plan to beat. Comparing only against the subscription in effect on the
+// start date would find nothing and let the request cancel the scheduled one.
+func TestUnforcedChangeDoesNotCancelALaterSubscription(t *testing.T) {
+	resetDB(t)
+
+	// A paid upgrade scheduled to start months from now.
+	start := time.Now().AddDate(0, 5, 0)
+	end := start.AddDate(0, 3, 0)
+	subscribeForPeriod(t, testUser, "Pro", start, end)
+
+	result := subscribe(t, testUser, "Basic", false)
+	if newSubscription, _ := result["new_subscription"].(bool); newSubscription {
+		t.Error("new_subscription = true, want false: a better subscription is already scheduled")
+	}
+
+	// A cancelled subscription is collapsed to zero length rather than deleted.
+	scheduled := queryInt(t, `
+		SELECT count(*)
+		  FROM subscriptions s
+		  JOIN users ON s.user_id = users.id
+		  JOIN plans p ON p.id = s.plan_id
+		 WHERE users.username = $1
+		   AND p.name = 'Pro'
+		   AND s.effective_end_date > s.effective_start_date`, testUser)
+	if scheduled != 1 {
+		t.Errorf("intact scheduled Pro subscriptions = %d, want 1", scheduled)
+	}
+}
+
+// A request that can't be satisfied is reported per item, in a 200 response,
+// rather than as an HTTP error for the whole batch. Terrain's admin route
+// parses each result out of the body, so the status and the failure_reason
+// field are both part of the contract.
+func TestBulkSubscriptionFailuresAreReportedPerItem(t *testing.T) {
+	resetDB(t)
+
+	body := fmt.Sprintf(
+		`{"subscriptions": [{"username": %q, "plan_name": "No Such Plan", "paid": true, "periods": 1}]}`,
+		testUser,
+	)
+	got := do(t, http.MethodPost, "/v1/subscriptions?force=true", body)
+	if got.status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 even though the item failed: %s", got.status, got.body)
+	}
+
+	results, ok := mustDecode(t, got)["result"].([]any)
+	if !ok || len(results) != 1 {
+		t.Fatalf("expected exactly one subscription result, got: %s", got.body)
+	}
+	reason, failed := results[0].(map[string]any)["failure_reason"].(string)
+	if !failed {
+		t.Fatalf("failure_reason is missing from the failed result: %s", got.body)
+	}
+	if !strings.Contains(reason, "No Such Plan") {
+		t.Errorf("failure_reason = %q, want it to name the plan that doesn't exist", reason)
+	}
+}
+
 // Creating an overlapping subscription deactivates the previous one, so a user
 // never has two active subscriptions at once. Anything reading "the current
 // plan" depends on that invariant holding.
@@ -222,13 +370,7 @@ func TestOverlappingSubscriptionsAreDeactivated(t *testing.T) {
 		}
 	}
 
-	activeCount := queryInt(t, `
-		SELECT count(*)
-		  FROM subscriptions s
-		  JOIN users ON s.user_id = users.id
-		 WHERE users.username = $1
-		   AND CURRENT_TIMESTAMP BETWEEN s.effective_start_date AND s.effective_end_date`,
-		testUser)
+	activeCount := queryInt(t, `SELECT count(*)`+activeSubscriptions, testUser)
 	if activeCount != 1 {
 		t.Errorf("active subscriptions = %d, want exactly 1", activeCount)
 	}
