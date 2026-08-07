@@ -12,6 +12,50 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// activeNow restricts a subscription query to the subscriptions in effect right now, as the database reckons it. A
+// subscription with no effective end date remains in effect indefinitely once it has started; every notion of "active"
+// in this package has to agree on that, so nothing here builds the predicate by hand.
+func activeNow(db *gorm.DB) *gorm.DB {
+	return db.Where(
+		"subscriptions.effective_start_date <= CURRENT_TIMESTAMP" +
+			" AND (subscriptions.effective_end_date IS NULL OR subscriptions.effective_end_date >= CURRENT_TIMESTAMP)",
+	)
+}
+
+// overlapping restricts a subscription query to the subscriptions whose effective period intersects the given window.
+// A subscription that ends exactly when the window opens, or starts exactly when it closes, doesn't intersect it.
+func overlapping(startDate, endDate time.Time) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(
+			"subscriptions.effective_start_date < ?"+
+				" AND (subscriptions.effective_end_date IS NULL OR subscriptions.effective_end_date > ?)",
+			endDate, startDate,
+		)
+	}
+}
+
+// withSubscriptionDetails preloads the associations required to describe a subscription in a response and to determine
+// its plan's active quota defaults.
+func withSubscriptionDetails(db *gorm.DB) *gorm.DB {
+	return db.
+		Preload("User").
+		Preload("Plan").
+		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
+				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
+		}).
+		Preload("Plan.PlanQuotaDefaults.ResourceType").
+		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
+			return db.Order("effective_date asc")
+		}).
+		Preload("Quotas").
+		Preload("Quotas.ResourceType").
+		Preload("Usages").
+		Preload("Usages.ResourceType").
+		Preload("PlanRate")
+}
+
 // QuotasFromPlan generates a set of quotas from the plan quota defaults in a plan.
 func QuotasFromPlan(plan *model.Plan, periods int32) []model.Quota {
 
@@ -92,40 +136,32 @@ func SubscribeUserToDefaultPlan(ctx context.Context, db *gorm.DB, username strin
 	return SubscribeUserToPlan(ctx, db, user, plan, &model.SubscriptionOptions{})
 }
 
-// GetActiveSubscriptionForDate retrieves information about the subscription active on the specified date. For a
-// subscription to be returned by this function, its effective start date must be beore the specified date and its
-// effective end date must be after the specified date. If multiple subscriptions are active on the specified date then
-// the one with the most redent effective start date is used.
-func GetActiveSubscriptionForDate(
+// ListOverlappingSubscriptionDetails retrieves every subscription belonging to the user whose effective period
+// intersects the given window, most recently started first, with the details needed to compare plan allocations. Adding
+// a subscription overrides all of them, so a caller deciding whether a new subscription is an upgrade has to weigh it
+// against the whole window rather than against the single subscription in effect when the window opens.
+func ListOverlappingSubscriptionDetails(
 	ctx context.Context,
 	db *gorm.DB,
 	username string,
-	date time.Time,
-) (*model.Subscription, error) {
-	wrapMsg := fmt.Sprintf("unable to get the active user plan at %s", date)
-	var err error
+	startDate, endDate time.Time,
+) ([]*model.Subscription, error) {
+	wrapMsg := fmt.Sprintf("unable to list the subscriptions between %s and %s", startDate, endDate)
 
-	// Look up the subscription.
-	var subscription model.Subscription
-	err = db.
+	var subscriptions []*model.Subscription
+	err := db.
 		WithContext(ctx).
-		Table("subscriptions").
+		Model(&model.Subscription{}).
 		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Where("users.username=?", username).
-		Where(
-			db.Where("? BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date", date).
-				Or("? > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		).
+		Scopes(overlapping(startDate, endDate), withSubscriptionDetails).
 		Order("subscriptions.effective_start_date desc").
-		First(&subscription).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
-	}
+		Find(&subscriptions).Error
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
 
-	return &subscription, nil
+	return subscriptions, nil
 }
 
 // GetActiveSubscription retrieves the user plan record that is currently active for the user. The effective start date
@@ -143,10 +179,7 @@ func GetActiveSubscription(ctx context.Context, db *gorm.DB, username string) (*
 		Table("subscriptions").
 		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Where("users.username=?", username).
-		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
-				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		).
+		Scopes(activeNow).
 		Order("subscriptions.effective_start_date desc").
 		First(&subscription).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -173,10 +206,7 @@ func HasActiveSubscription(ctx context.Context, db *gorm.DB, username string) (b
 		Table("subscriptions").
 		Joins("JOIN users ON subscriptions.user_id=users.id").
 		Where("users.username=?", username).
-		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
-				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		).
+		Scopes(activeNow).
 		Count(&count).
 		Error
 	if err != nil {
@@ -192,22 +222,7 @@ func GetSubscriptionDetails(ctx context.Context, db *gorm.DB, subscriptionID str
 	var subscription *model.Subscription
 
 	err := db.WithContext(ctx).
-		Preload("User").
-		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
-			return db.
-				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
-				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
-		}).
-		Preload("Plan.PlanQuotaDefaults.ResourceType").
-		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
-			return db.Order("effective_date asc")
-		}).
-		Preload("Quotas").
-		Preload("Quotas.ResourceType").
-		Preload("Usages").
-		Preload("Usages.ResourceType").
-		Preload("PlanRate").
+		Scopes(withSubscriptionDetails).
 		Where("id = ?", subscriptionID).
 		First(&subscription).
 		Error
@@ -255,26 +270,7 @@ func ListSubscriptions(
 	// Build the base query.
 	baseQuery := db.WithContext(ctx).
 		Joins("JOIN users ON subscriptions.user_id=users.id").
-		Preload("User").
-		Preload("Plan").
-		Preload("Plan.PlanQuotaDefaults", func(db *gorm.DB) *gorm.DB {
-			return db.
-				Joins("INNER JOIN resource_types ON plan_quota_defaults.resource_type_id = resource_types.id").
-				Order("plan_quota_defaults.effective_date asc, resource_types.name asc")
-		}).
-		Preload("Plan.PlanQuotaDefaults.ResourceType").
-		Preload("Plan.PlanRates", func(db *gorm.DB) *gorm.DB {
-			return db.Order("effective_date asc")
-		}).
-		Preload("Quotas").
-		Preload("Quotas.ResourceType").
-		Preload("Usages").
-		Preload("Usages.ResourceType").
-		Preload("PlanRate").
-		Where(
-			db.Where("CURRENT_TIMESTAMP BETWEEN subscriptions.effective_start_date AND subscriptions.effective_end_date").
-				Or("CURRENT_TIMESTAMP > subscriptions.effective_start_date AND subscriptions.effective_end_date IS NULL"),
-		)
+		Scopes(withSubscriptionDetails, activeNow)
 
 	// Add the search clause if we're supposed to.
 	if params.Search != "" {
@@ -367,32 +363,9 @@ func GetActiveSubscriptionDetails(ctx context.Context, db *gorm.DB, username str
 	return GetSubscriptionDetails(ctx, db, *subscription.ID)
 }
 
-// GetActiveSubscriptionDetailsForDate retrieves the active subscription for the user as of the given date. The active
-// subscription is determined by comparing the effective start and end dates for the subscription to the given date. For
-// a subscription to be considered active as of the given date, the effective start date must be prior to the given date
-// and the effective end date must be after the given date. If there are multiple active subscriptions as of the given
-// date then the one with the most recent effective start date will be returned. If there are no active subscriptions as
-// of the given date then a null pointer will be returned instead.
-func GetActiveSubscriptionDetailsForDate(
-	ctx context.Context,
-	db *gorm.DB,
-	username string,
-	date time.Time,
-) (*model.Subscription, error) {
-	var err error
-
-	// Get the subscription that was active as of the given date if there is one.
-	subscription, err := GetActiveSubscriptionForDate(ctx, db, username, date)
-	if subscription == nil || err != nil {
-		return subscription, err
-	}
-
-	// Load the subscription details.
-	return GetSubscriptionDetails(ctx, db, *subscription.ID)
-}
-
 // DeactivateSubscriptions marks subscriptions for a user as expired. This operation is used when a user subscribes to a
-// new plan.
+// new plan. Subscriptions with no effective end date are treated as running indefinitely, matching activeNow; closing
+// them here is what keeps a new subscription from running alongside an open-ended one.
 func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string, startDate, endDate time.Time) error {
 	wrapMsg := "unable to deactivate active plans for user"
 
@@ -401,7 +374,7 @@ func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string, st
 		Model(&model.Subscription{}).
 		Where("user_id = ?", userID).
 		Where("effective_start_date <= ?", startDate).
-		Where("effective_end_date > ?", startDate).
+		Where("(effective_end_date IS NULL OR effective_end_date > ?)", startDate).
 		UpdateColumn("effective_end_date", startDate).
 		Error
 	if err != nil {
@@ -413,7 +386,7 @@ func DeactivateSubscriptions(ctx context.Context, db *gorm.DB, userID string, st
 		Model(&model.Subscription{}).
 		Where("user_id = ?", userID).
 		Where("effective_start_date >= ?", startDate).
-		Where("effective_end_date > ?", endDate).
+		Where("(effective_end_date IS NULL OR effective_end_date > ?)", endDate).
 		UpdateColumn("effective_start_date", endDate).
 		Error
 	if err != nil {

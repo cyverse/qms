@@ -57,6 +57,24 @@ func (sa *SubscriptionAdder) subscriptionErrorf(username string, f string, args 
 	return sa.subscriptionError(username, fmt.Sprintf(f, args...))
 }
 
+// largestSubscription returns the subscription with the largest CPU hours allocation, which is how this service ranks
+// plan levels. The subscriptions are assumed to be ordered by effective start date, descending, so the most recently
+// started one wins a tie.
+func largestSubscription(subscriptions []*model.Subscription) *model.Subscription {
+	var largest *model.Subscription
+	var largestAllocation float64
+	for _, subscription := range subscriptions {
+		if subscription.Plan == nil {
+			continue
+		}
+		allocation := subscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+		if largest == nil || allocation > largestAllocation {
+			largest, largestAllocation = subscription, allocation
+		}
+	}
+	return largest
+}
+
 // AddSubscription subscribes a user to a subscription plan.
 func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.SubscriptionRequest) *model.SubscriptionResponse {
 	username := req.Username
@@ -107,17 +125,22 @@ func (sa *SubscriptionAdder) AddSubscription(tx *gorm.DB, req model.Subscription
 
 	// Check the current plan if we're supposed to.
 	if !sa.cfg.Force {
-		activeSubscription, err := db.GetActiveSubscriptionDetailsForDate(sa.cfg.Ctx, tx, *username, startDate)
+		// Adding this subscription overrides every subscription it overlaps, so the request is only an upgrade if it
+		// beats all of them. Comparing against just the subscription in effect on the start date would let a request
+		// cancel a better subscription scheduled later in the period without ever reporting a downgrade.
+		overlapping, err := db.ListOverlappingSubscriptionDetails(sa.cfg.Ctx, tx, *username, startDate, endDate)
 		if err != nil {
 			log.Error(err)
 			return sa.subscriptionError(*username, err.Error())
 		}
 
-		// Compare the CPU allocations to determine the plan levels to determine if the user gets a new subscription.
-		activeCPUAllocation := activeSubscription.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
-		newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
-		if newCPUAllocation <= activeCPUAllocation {
-			return model.SubscriptionResponseFromSubscription(activeSubscription, false)
+		// A user with no subscription over the period has nothing to compare against, so the request proceeds.
+		if best := largestSubscription(overlapping); best != nil {
+			newCPUAllocation := plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+			bestCPUAllocation := best.Plan.GetDefaultQuotaValue(model.RESOURCE_TYPE_CPU_HOURS)
+			if newCPUAllocation <= bestCPUAllocation {
+				return model.SubscriptionResponseFromSubscription(best, false)
+			}
 		}
 	}
 
@@ -196,13 +219,24 @@ func (s Server) AddSubscriptions(ctx echo.Context) error {
 	// Add a separate subscription for each subscription request in the request body.
 	response := make([]*model.SubscriptionResponse, len(body.Subscriptions))
 	for i, subscriptionRequest := range body.Subscriptions {
-		_ = s.GORMDB.Transaction(func(tx *gorm.DB) error {
+		err = s.GORMDB.Transaction(func(tx *gorm.DB) error {
 			response[i] = subscriptionAdder.AddSubscription(
 				tx,
 				subscriptionRequest,
 			)
 			return nil
 		})
+
+		// The callback reports its own failures in the response, so an error here is the transaction itself failing to
+		// commit. Reporting the subscription as created would tell the caller a subscription exists when it doesn't.
+		if err != nil {
+			var username string
+			if subscriptionRequest.Username != nil {
+				username = *subscriptionRequest.Username
+			}
+			log.Error(err)
+			response[i] = subscriptionAdder.subscriptionError(username, err.Error())
+		}
 	}
 
 	return model.Success(ctx, response, http.StatusOK)
