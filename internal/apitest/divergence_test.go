@@ -354,6 +354,65 @@ func TestBulkSubscriptionFailuresAreReportedPerItem(t *testing.T) {
 	}
 }
 
+// The reads that answer "what is this user on right now" have to filter by the
+// active-subscription predicate, not just take the most recently starting row.
+// A subscription scheduled to start later sorts first by effective start date,
+// so dropping that filter would surface the future plan — and every other test
+// here would stay green, because they never give a user a subscription that
+// hasn't started.
+func TestCurrentPlanIgnoresASubscriptionThatHasNotStarted(t *testing.T) {
+	resetDB(t)
+
+	// The bulk endpoint stores the username verbatim while the user-scoped
+	// routes trim the suffix, so this user is named without one to keep both
+	// halves of the test pointed at the same row.
+	const username = "testuser"
+
+	subscribe(t, username, "Basic", true)
+	start := time.Now().AddDate(0, 5, 0)
+	subscribeForPeriod(t, username, "Pro", start, start.AddDate(0, 3, 0))
+
+	// GET /v1/users/{username}/plan backs terrain's /terrain/qms/user/plan.
+	t.Run("the user's current subscription", func(t *testing.T) {
+		got := do(t, http.MethodGet, "/v1/users/"+username+"/plan", "")
+		if got.status != http.StatusOK {
+			t.Fatalf("status = %d, body %s", got.status, got.body)
+		}
+
+		result, ok := mustDecode(t, got)["result"].(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected response shape: %s", got.body)
+		}
+		plan, _ := result["plan"].(map[string]any)
+		if name, _ := plan["name"].(string); name != "Basic" {
+			t.Errorf("current plan = %q, want \"Basic\": the Pro subscription hasn't started", name)
+		}
+	})
+
+	// GET /v1/subscriptions backs the paginated admin listing.
+	t.Run("the admin subscription listing", func(t *testing.T) {
+		got := do(t, http.MethodGet, "/v1/subscriptions?offset=0&limit=50", "")
+		if got.status != http.StatusOK {
+			t.Fatalf("status = %d, body %s", got.status, got.body)
+		}
+
+		result, ok := mustDecode(t, got)["result"].(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected response shape: %s", got.body)
+		}
+		listed, _ := result["subscriptions"].([]any)
+		var names []string
+		for _, subscription := range listed {
+			plan, _ := subscription.(map[string]any)["plan"].(map[string]any)
+			name, _ := plan["name"].(string)
+			names = append(names, name)
+		}
+		if len(names) != 1 || names[0] != "Basic" {
+			t.Errorf("listed plans = %v, want [Basic]: the Pro subscription hasn't started", names)
+		}
+	})
+}
+
 // Creating an overlapping subscription deactivates the previous one, so a user
 // never has two active subscriptions at once. Anything reading "the current
 // plan" depends on that invariant holding.
